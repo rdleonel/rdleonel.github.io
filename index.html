@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Iron Overload — Progressão de Carga</title>
+<meta name="description" content="Rastreador de sobrecarga progressiva: aumente a carga ou as repetições.">
+<meta name="theme-color" content="#131313">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=2">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png?v=2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Iron Overload">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@600;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#131313; --surface:#1c1b1b; --surface-2:#201f1f; --surface-3:#2a2a2a;
+    --border:#333333; --text:#e5e2e1; --text-dim:#999077; --muted:#d0c6ab;
+    --yellow:#ffd700; --yellow-dim:#e9c400; --green:#34f885; --red:#ff5b4d;
+    --radius:4px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:'Inter',sans-serif; font-size:16px;
+    max-width:520px; margin:0 auto;
+    display:flex; flex-direction:column; min-height:100dvh;
+  }
+  h1,h2,h3,.uc{font-family:'Archivo Narrow',sans-serif; text-transform:uppercase; letter-spacing:.01em;}
+  button{font-family:inherit; color:inherit; background:none; border:none; cursor:pointer;}
+  input{font-family:'Inter',sans-serif;}
+
+  /* ---------- Header ---------- */
+  header{
+    display:flex; align-items:center; gap:12px;
+    padding:16px; border-bottom:1px solid var(--border);
+    position:sticky; top:0; background:var(--bg); z-index:10;
+  }
+  header .back{
+    width:40px; height:40px; display:none; align-items:center; justify-content:center;
+    border:1px solid var(--border); border-radius:var(--radius); font-size:20px; color:var(--text);
+  }
+  header.has-back .back{display:flex;}
+  header h1{font-size:26px; font-weight:700; flex:1; line-height:1.1;}
+  header .logo-accent{color:var(--yellow);}
+
+  main{flex:1; padding:16px; padding-bottom:32px;}
+
+  .kicker{
+    font-family:'Archivo Narrow',sans-serif; font-size:12px; font-weight:600;
+    letter-spacing:.08em; text-transform:uppercase; color:var(--text-dim); margin-bottom:4px;
+  }
+  .page-title{
+    font-size:30px; font-weight:700; margin-bottom:20px;
+    border-left:4px solid var(--yellow); padding-left:12px; line-height:1.05;
+  }
+  .motto{
+    display:flex; gap:8px; align-items:flex-start; color:var(--muted);
+    font-family:'Archivo Narrow',sans-serif; font-size:13px; font-weight:600;
+    letter-spacing:.06em; text-transform:uppercase; margin:-10px 0 20px 16px;
+  }
+
+  /* ---------- Grupos (home) ---------- */
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+  .group-card{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    box-shadow:0 4px 0 0 rgba(0,0,0,.5);
+    padding:0; text-align:left; overflow:hidden;
+    display:flex; flex-direction:column;
+    transition:transform .06s;
+  }
+  .group-card:active{transform:translateY(2px); box-shadow:0 2px 0 0 rgba(0,0,0,.5);}
+  .group-img{width:100%; height:118px; object-fit:cover; display:block; background:var(--surface-2); border-bottom:1px solid var(--border);}
+  .group-card > svg{width:44px; height:44px; stroke:var(--yellow); margin:16px 14px 0;}
+  .group-body{padding:12px 14px 16px;}
+  .group-card .gname{font-family:'Archivo Narrow',sans-serif; font-size:24px; font-weight:700; text-transform:uppercase;}
+  .group-card .gcount{font-size:12px; color:var(--text-dim); font-weight:600;}
+  .seg-bar{display:flex; gap:3px; margin-top:8px;}
+  .seg-bar i{height:4px; flex:1; background:var(--surface-3); border-radius:1px;}
+  .seg-bar i.on{background:var(--yellow);}
+
+  .banner{
+    margin-top:20px; background:var(--surface-2); border:1px solid var(--border);
+    border-left:4px solid var(--green); border-radius:var(--radius); padding:14px 16px;
+  }
+  .banner .kicker{color:var(--muted); margin-bottom:6px;}
+  .banner p{font-size:14px; line-height:1.5; color:var(--text);}
+  .banner b{color:var(--green);}
+  .banner .when{color:var(--text-dim); font-size:12px; margin-top:4px; display:block;}
+
+  /* ---------- Lista de exercícios ---------- */
+  .ex-card{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    box-shadow:0 4px 0 0 rgba(0,0,0,.5); margin-bottom:14px; overflow:hidden;
+    width:100%; text-align:left; display:block;
+  }
+  .ex-card:active{transform:translateY(1px);}
+  .ex-main{display:flex; align-items:center; gap:14px; padding:14px;}
+  .ex-icon{
+    width:64px; height:64px; flex:none; border:1px solid var(--border); border-radius:var(--radius);
+    background:var(--surface-2); display:flex; align-items:center; justify-content:center; overflow:hidden;
+  }
+  .ex-icon svg{width:32px; height:32px; stroke:var(--yellow);}
+  .ex-icon img{width:100%; height:100%; object-fit:cover; display:block;}
+  .ex-hero{
+    width:100%; height:190px; object-fit:cover; border:1px solid var(--border);
+    border-radius:var(--radius); box-shadow:0 4px 0 0 rgba(0,0,0,.5); margin-bottom:20px; background:var(--surface-2);
+  }
+  .ex-info{flex:1; min-width:0;}
+  .ex-name{font-family:'Archivo Narrow',sans-serif; font-size:20px; font-weight:700; text-transform:uppercase; line-height:1.15;}
+  .ex-last{font-size:12px; color:var(--text-dim); margin-top:3px; font-weight:600;}
+  .ex-last b{color:var(--text); font-family:'Inter',sans-serif; font-size:16px; font-weight:800;}
+  .ex-chev{color:var(--text-dim); font-size:20px;}
+  .ex-foot{
+    display:flex; justify-content:space-between; align-items:center;
+    border-top:1px solid var(--border); background:var(--surface-2);
+    padding:8px 14px; font-family:'Archivo Narrow',sans-serif; font-size:12px;
+    font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--muted);
+  }
+  .ex-foot .go{color:var(--yellow);}
+  .subhead{
+    font-family:'Archivo Narrow',sans-serif; font-size:14px; font-weight:700;
+    letter-spacing:.08em; text-transform:uppercase; color:var(--muted);
+    margin:22px 0 12px; display:flex; align-items:center; gap:10px;
+  }
+  .subhead::after{content:''; flex:1; height:1px; background:var(--border);}
+
+  .add-btn{
+    width:100%; border:2px dashed var(--text-dim); border-radius:var(--radius);
+    padding:16px; margin-top:6px; color:var(--muted);
+    font-family:'Archivo Narrow',sans-serif; font-size:15px; font-weight:700;
+    letter-spacing:.06em; text-transform:uppercase;
+    display:flex; align-items:center; justify-content:center; gap:10px;
+  }
+  .add-btn:active{border-color:var(--yellow); color:var(--yellow);}
+
+  /* ---------- Tela do exercício ---------- */
+  .meta-row{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px;}
+  .meta-box{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:12px 14px;}
+  .meta-box .kicker{margin-bottom:6px;}
+  .meta-box .val{font-family:'Archivo Narrow',sans-serif; font-size:20px; font-weight:700; text-transform:uppercase;}
+
+  table.log{width:100%; border-collapse:collapse; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden;}
+  .log-wrap{border-radius:var(--radius); overflow:hidden; box-shadow:0 4px 0 0 rgba(0,0,0,.5); border:1px solid var(--border);}
+  table.log th{
+    background:var(--surface-3); padding:10px 6px;
+    font-family:'Archivo Narrow',sans-serif; font-size:11px; font-weight:600;
+    letter-spacing:.07em; text-transform:uppercase; color:var(--muted); text-align:center;
+  }
+  table.log td{padding:12px 6px; border-top:1px solid var(--border); text-align:center; vertical-align:middle;}
+  .num-input{
+    width:100%; max-width:88px; background:#0e0e0e; border:2px solid var(--border); border-radius:var(--radius);
+    color:var(--text); font-size:24px; font-weight:800; text-align:center; padding:10px 4px;
+    letter-spacing:-.02em;
+  }
+  .num-input:focus{outline:none; border-color:var(--yellow);}
+  .num-input.up{border-color:var(--green); color:var(--green); animation:pulse .5s;}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(52,248,133,.6);}100%{box-shadow:0 0 0 10px rgba(52,248,133,0);}}
+  .date-tag{
+    display:inline-block; background:var(--surface-3); border:1px solid var(--border);
+    border-radius:999px; padding:5px 10px;
+    font-family:'Archivo Narrow',sans-serif; font-size:11px; font-weight:600;
+    letter-spacing:.05em; text-transform:uppercase; color:var(--muted); white-space:nowrap;
+  }
+  .date-tag.today{background:var(--green); border-color:var(--green); color:#00210b;}
+  .date-tag.empty{color:var(--text-dim);}
+  .row-del{color:var(--text-dim); font-size:16px; padding:6px;}
+  .row-del:active{color:var(--red);}
+
+  .hint{font-size:12px; color:var(--text-dim); margin:10px 2px 0; line-height:1.5;}
+  .hint b{color:var(--green);}
+
+  .cta{
+    width:100%; margin-top:24px; background:var(--yellow); color:#131313;
+    font-family:'Archivo Narrow',sans-serif; font-size:20px; font-weight:700;
+    letter-spacing:.03em; text-transform:uppercase;
+    padding:18px; border-radius:var(--radius); box-shadow:0 4px 0 0 rgba(0,0,0,.5);
+  }
+  .cta:active{transform:translateY(2px); box-shadow:0 2px 0 0 rgba(0,0,0,.5);}
+  .cta.saved{background:var(--green);}
+
+  .danger-link{
+    display:block; margin:26px auto 0; color:var(--text-dim); font-size:12px;
+    font-family:'Archivo Narrow',sans-serif; font-weight:600; letter-spacing:.06em; text-transform:uppercase;
+  }
+  .danger-link:active{color:var(--red);}
+
+  /* ---------- Modal ---------- */
+  .modal-bg{
+    position:fixed; inset:0; background:rgba(0,0,0,.75); z-index:50;
+    display:none; align-items:flex-end; justify-content:center;
+  }
+  .modal-bg.open{display:flex;}
+  .modal{
+    background:var(--surface-2); border:1px solid var(--border); border-bottom:none;
+    border-radius:8px 8px 0 0; width:100%; max-width:520px; padding:20px 16px 28px;
+  }
+  .modal h3{font-size:20px; margin-bottom:16px;}
+  .modal label{display:block; font-size:12px; color:var(--muted); margin:14px 0 6px;
+    font-family:'Archivo Narrow',sans-serif; font-weight:600; letter-spacing:.06em; text-transform:uppercase;}
+  .modal input[type=text]{
+    width:100%; background:#0e0e0e; border:2px solid var(--border); border-radius:var(--radius);
+    color:var(--text); font-size:18px; padding:12px; font-weight:600;
+  }
+  .modal input[type=text]:focus{outline:none; border-color:var(--yellow);}
+  .icon-pick{display:grid; grid-template-columns:repeat(6,1fr); gap:8px;}
+  .icon-pick button{
+    aspect-ratio:1; border:2px solid var(--border); border-radius:var(--radius);
+    background:var(--surface); display:flex; align-items:center; justify-content:center;
+  }
+  .icon-pick button.sel{border-color:var(--yellow); background:#2a2600;}
+  .icon-pick svg{width:26px; height:26px; stroke:var(--muted);}
+  .icon-pick button.sel svg{stroke:var(--yellow);}
+  .modal .actions{display:flex; gap:10px; margin-top:22px;}
+  .modal .actions .cta{margin-top:0; flex:1; font-size:16px; padding:14px;}
+  .modal .cancel{
+    flex:1; border:2px solid var(--border); border-radius:var(--radius); color:var(--muted);
+    font-family:'Archivo Narrow',sans-serif; font-size:16px; font-weight:700; text-transform:uppercase;
+  }
+
+  /* ---------- Bottom nav ---------- */
+  nav{
+    position:sticky; bottom:0; background:#0e0e0e; border-top:1px solid var(--border);
+    display:flex; padding:10px 16px calc(10px + env(safe-area-inset-bottom)); z-index:10;
+  }
+  nav button{
+    flex:1; display:flex; flex-direction:column; align-items:center; gap:4px;
+    color:var(--text-dim); font-family:'Archivo Narrow',sans-serif; font-size:11px;
+    font-weight:600; letter-spacing:.06em; text-transform:uppercase; padding:6px 0;
+  }
+  nav button svg{width:22px; height:22px; stroke:currentColor;}
+  nav button.active{color:var(--yellow);}
+
+  /* ---------- Histórico ---------- */
+  .hist-item{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    box-shadow:0 4px 0 0 rgba(0,0,0,.5); padding:14px; margin-bottom:12px;
+    display:flex; align-items:center; gap:12px;
+  }
+  .hist-item .ex-icon{width:44px; height:44px;}
+  .hist-item .ex-icon svg{width:26px; height:26px;}
+  .hist-body{flex:1; min-width:0;}
+  .hist-name{font-family:'Archivo Narrow',sans-serif; font-size:16px; font-weight:700; text-transform:uppercase;}
+  .hist-delta{font-size:14px; font-weight:800; color:var(--green); margin-top:2px;}
+  .hist-date{font-size:11px; color:var(--text-dim); white-space:nowrap; font-weight:600;}
+  .empty-state{
+    text-align:center; color:var(--text-dim); padding:60px 20px; font-size:14px; line-height:1.6;
+  }
+  .empty-state svg{width:44px; height:44px; stroke:var(--text-dim); margin-bottom:14px;}
+</style>
+</head>
+<body>
+  <header id="header"></header>
+  <main id="main"></main>
+  <nav id="nav"></nav>
+  <div class="modal-bg" id="modalBg"><div class="modal" id="modal"></div></div>
+
+<script>
+/* =============== ÍCONES (SVG stroke 2pt, estilo wireframe) =============== */
+const S = 'fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" stroke="currentColor"';
+const ICONS = {
+  barbell:   `<svg ${S}><path d="M3 9v6M6 7v10M18 7v10M21 9v6M6 12h12"/></svg>`,
+  bench:     `<svg ${S}><path d="M4 15h16M6 15v4M18 15v4M8 15V9M16 15V9M5 9h14M2 6v6M22 6v6"/></svg>`,
+  incline:   `<svg ${S}><path d="M4 18h16M6 18v-4l10-8M16 6l4 2M8 12l6 6M3 4v6M21 3v6"/></svg>`,
+  decline:   `<svg ${S}><path d="M4 18h16M6 18v-6l10 4M4 8v6M20 13v6M9 6v5M15 9v5M8 6h2M14 9h2"/></svg>`,
+  fly:       `<svg ${S}><path d="M12 6v12M12 9c-3-3-7-3-9-1 2 3 6 4 9 4M12 9c3-3 7-3 9-1-2 3-6 4-9 4"/></svg>`,
+  cable:     `<svg ${S}><path d="M6 3v7M18 3v7M6 10l6 8 6-8M12 18v3M4 3h4M16 3h4"/></svg>`,
+  pushup:    `<svg ${S}><circle cx="6" cy="8" r="2"/><path d="M8 10l8 3 5 2M8 10l-4 8M10 16l6-2M4 21h16"/></svg>`,
+  pulldown:  `<svg ${S}><path d="M4 4h16M8 4v5l4 4 4-4V4M12 13v5M9 21h6"/></svg>`,
+  row:       `<svg ${S}><circle cx="17" cy="6" r="2"/><path d="M15 8l-6 4H4M9 12l6 4 4 1M9 12v6"/></svg>`,
+  pullup:    `<svg ${S}><path d="M3 3h18M7 3v4M17 3v4M9 7h6M12 7v6M9 17l3-4 3 4M10 21l2-4 2 4"/></svg>`,
+  deadlift:  `<svg ${S}><path d="M2 16h20M4 13v6M20 13v6M7 16V8l5-4 5 4v8M12 4v6"/></svg>`,
+  curl:      `<svg ${S}><path d="M8 21V11c0-3 2-5 4-5s4 2 4 5M16 11v4M6 6l2-2M8 4h3"/></svg>`,
+  hammer:    `<svg ${S}><path d="M6 21V9M6 9c0-3 2-5 5-5M11 4h5v4h-5M11 8v4M6 15h5"/></svg>`,
+  preacher:  `<svg ${S}><path d="M4 20h16M6 20v-8l6-6M12 6h6M15 6v8M12 14h6M9 11l6 3"/></svg>`,
+  pushdown:  `<svg ${S}><path d="M5 3v6M19 3v6M5 9h14M12 9v8M8 13l4 4 4-4M3 3h4M17 3h4"/></svg>`,
+  skull:     `<svg ${S}><path d="M4 17h16M6 17v3M18 17v3M6 17l4-8h4l4 8M14 9c2-2 2-5 0-6M10 9C8 7 8 4 10 3"/></svg>`,
+  dip:       `<svg ${S}><path d="M4 6h5M15 6h5M6 6v14M18 6v14M9 10c1 2 5 2 6 0M12 11v5"/></svg>`,
+  kickback:  `<svg ${S}><circle cx="6" cy="6" r="2"/><path d="M8 8l4 3 7-2M12 11l2 6M14 17h3M8 8l-2 7"/></svg>`,
+  crunch:    `<svg ${S}><circle cx="7" cy="9" r="2"/><path d="M9 10c2 0 4 2 4 4l6 3M13 14l-3 5M3 21h18"/></svg>`,
+  legraise:  `<svg ${S}><circle cx="6" cy="6" r="2"/><path d="M6 8v13M6 12h4l8-6M6 16h6M3 21h6"/></svg>`,
+  plank:     `<svg ${S}><circle cx="5" cy="10" r="2"/><path d="M7 11l10 1 4 1M11 12l-1 6M17 12v6M3 21h18"/></svg>`,
+  oblique:   `<svg ${S}><circle cx="12" cy="5" r="2"/><path d="M12 7v7M12 10l-5 3M12 10l5 3M12 14l-3 6M12 14l3 6"/></svg>`,
+  squat:     `<svg ${S}><path d="M4 5h16M6 5v3M18 5v3M12 5v3M9 8h6l1 5-2 3v4M9 8l-1 5 2 3v4"/></svg>`,
+  legpress:  `<svg ${S}><path d="M3 20L14 5M14 5h6v6M6 20l6-7M12 13l4 3M4 21h16"/></svg>`,
+  extension: `<svg ${S}><path d="M8 4v8M8 12l7 2M15 14l4-6M8 4H5M8 8H5M15 14l1 6"/></svg>`,
+  lunge:     `<svg ${S}><circle cx="12" cy="4" r="2"/><path d="M12 6v6M12 12l-5 4v5M12 12l5 2 1 7M3 21h18"/></svg>`,
+  hack:      `<svg ${S}><path d="M4 19L15 4M15 4h5v5M7 19l5-6M12 13l5 4M3 20h18"/></svg>`,
+  legcurl:   `<svg ${S}><path d="M3 12h11M14 12c4 0 6 2 6 5M20 17h-6M3 12v8M3 16h5"/></svg>`,
+  stiff:     `<svg ${S}><path d="M2 18h20M4 15v6M20 15v6M7 18V10M17 18V10M7 10c3-4 7-4 10 0M12 7V4"/></svg>`,
+  hipthrust: `<svg ${S}><path d="M3 19h18M5 19v-5M12 14a3 3 0 006 0M5 14h13M8 14v-4M8 10h4"/></svg>`,
+  calf:      `<svg ${S}><path d="M9 3v6c0 3 2 4 3 6s1 4 0 6M15 3v6c0 2-1 3-2 4M6 21h9"/></svg>`,
+  machine:   `<svg ${S}><rect x="4" y="4" width="16" height="16" rx="1"/><path d="M8 8v8M16 8v8M8 12h8"/></svg>`,
+  dumbbell:  `<svg ${S}><path d="M7 8v8M4 9.5v5M17 8v8M20 9.5v5M7 12h10"/></svg>`,
+};
+
+/* Retorna o HTML do "desenho" do exercício: imagem gerada para os exercícios
+   padrão; ícone SVG (com fallback) para exercícios personalizados do usuário. */
+function exIconHTML(ex){
+  const svg = ICONS[ex.icon] || ICONS.dumbbell;
+  if(ex && ex.custom === false){
+    return `<img src="images/${ex.id}.jpg" alt="" loading="lazy" data-icon="${ex.icon}" onerror="imgFallback(this)">`;
+  }
+  return svg;
+}
+window.imgFallback = el => { el.outerHTML = ICONS[el.dataset.icon] || ICONS.dumbbell; };
+
+/* =============== EXERCÍCIOS PADRÃO (os mais comuns por grupo) =============== */
+const GROUPS = [
+  {id:'peito', name:'Peito', icon:'bench'},
+  {id:'costas', name:'Costas', icon:'row'},
+  {id:'biceps', name:'Bíceps', icon:'curl'},
+  {id:'triceps', name:'Tríceps', icon:'pushdown'},
+  {id:'abdominal', name:'Abdominal', icon:'crunch'},
+  {id:'pernas', name:'Pernas', icon:'squat'},
+];
+
+const DEFAULT_EXERCISES = {
+  peito: [
+    {name:'Supino Reto', icon:'bench'},
+    {name:'Supino Inclinado', icon:'incline'},
+    {name:'Supino Declinado', icon:'decline'},
+    {name:'Voador (Peck Deck)', icon:'fly'},
+    {name:'Crucifixo com Halteres', icon:'dumbbell'},
+    {name:'Crossover (Polia)', icon:'cable'},
+    {name:'Flexão de Braços', icon:'pushup'},
+  ],
+  costas: [
+    {name:'Puxada Alta (Pulldown)', icon:'pulldown'},
+    {name:'Remada Curvada', icon:'barbell'},
+    {name:'Remada Baixa (Polia)', icon:'cable'},
+    {name:'Remada Unilateral (Serrote)', icon:'row'},
+    {name:'Barra Fixa', icon:'pullup'},
+    {name:'Levantamento Terra', icon:'deadlift'},
+  ],
+  biceps: [
+    {name:'Rosca Direta', icon:'barbell'},
+    {name:'Rosca Alternada', icon:'curl'},
+    {name:'Rosca Martelo', icon:'hammer'},
+    {name:'Rosca Scott', icon:'preacher'},
+    {name:'Rosca Concentrada', icon:'dumbbell'},
+  ],
+  triceps: [
+    {name:'Tríceps na Polia (Pulley)', icon:'pushdown'},
+    {name:'Tríceps Testa', icon:'skull'},
+    {name:'Tríceps Francês', icon:'dumbbell'},
+    {name:'Mergulho (Paralelas)', icon:'dip'},
+    {name:'Supino Fechado', icon:'bench'},
+    {name:'Tríceps Coice', icon:'kickback'},
+  ],
+  abdominal: [
+    {name:'Abdominal Supra (Crunch)', icon:'crunch'},
+    {name:'Abdominal Infra (Elev. Pernas)', icon:'legraise'},
+    {name:'Prancha', icon:'plank'},
+    {name:'Abdominal Oblíquo', icon:'oblique'},
+    {name:'Abdominal na Máquina', icon:'machine'},
+  ],
+  pernas: [
+    {name:'Agachamento Livre', icon:'squat', sub:'quad'},
+    {name:'Leg Press', icon:'legpress', sub:'quad'},
+    {name:'Cadeira Extensora', icon:'extension', sub:'quad'},
+    {name:'Afundo (Avanço)', icon:'lunge', sub:'quad'},
+    {name:'Agachamento Hack', icon:'hack', sub:'quad'},
+    {name:'Cadeira / Mesa Flexora', icon:'legcurl', sub:'post'},
+    {name:'Stiff', icon:'stiff', sub:'post'},
+    {name:'Terra Romeno', icon:'deadlift', sub:'post'},
+    {name:'Elevação Pélvica', icon:'hipthrust', sub:'post'},
+    {name:'Panturrilha em Pé', icon:'calf', sub:'post'},
+  ],
+};
+
+/* =============== ESTADO / PERSISTÊNCIA =============== */
+const STORE_KEY = 'iron-overload-v1';
+let state = null;
+
+function newRow(){ return {series:'', reps:'', carga:'', lastInc:null}; }
+
+function freshState(){
+  const ex = {};
+  for(const g of GROUPS){
+    ex[g.id] = DEFAULT_EXERCISES[g.id].map((e,i)=>({
+      id: g.id+'-'+i, name:e.name, icon:e.icon, sub:e.sub||null, custom:false,
+      rows:[newRow()],
+    }));
+  }
+  return {exercises:ex, log:[], nextId:1000};
+}
+
+function load(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    state = raw ? JSON.parse(raw) : freshState();
+  }catch(e){ state = freshState(); }
+}
+function save(){ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+
+/* =============== DATAS =============== */
+const MESES = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+function fmtDate(iso){
+  if(!iso) return '—';
+  if(iso === todayISO()) return 'HOJE!';
+  const [y,m,d] = iso.split('-');
+  return `${d} ${MESES[+m-1]}` + (String(new Date().getFullYear())!==y ? ' '+y.slice(2) : '');
+}
+
+/* =============== NAVEGAÇÃO =============== */
+let view = {page:'home'}; // {page:'home'|'group'|'exercise'|'history', groupId, exId}
+
+function go(v){ view = v; render(); window.scrollTo(0,0); }
+
+/* =============== RENDER =============== */
+const $ = id => document.getElementById(id);
+
+function render(){
+  renderNav();
+  if(view.page==='home') renderHome();
+  else if(view.page==='group') renderGroup(view.groupId);
+  else if(view.page==='exercise') renderExercise(view.groupId, view.exId);
+  else if(view.page==='history') renderHistory();
+}
+
+function header(title, backTo){
+  const h = $('header');
+  h.className = backTo ? 'has-back' : '';
+  h.innerHTML = `
+    ${backTo ? `<button class="back" id="backBtn">←</button>` : ''}
+    <h1>${title}</h1>`;
+  if(backTo) $('backBtn').onclick = ()=>go(backTo);
+}
+
+function renderNav(){
+  const items = [
+    {id:'home', label:'Dashboard', icon:`<svg ${S}><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>`},
+    {id:'history', label:'Progressos', icon:`<svg ${S}><path d="M3 21h18M6 21V10M11 21V4M16 21v-8M21 21V7"/></svg>`},
+  ];
+  $('nav').innerHTML = items.map(i=>{
+    const active = (view.page===i.id) || (i.id==='home' && view.page!=='history');
+    return `<button data-nav="${i.id}" class="${active?'active':''}">${i.icon}${i.label}</button>`;
+  }).join('');
+  $('nav').querySelectorAll('button').forEach(b=>{
+    b.onclick = ()=>go({page:b.dataset.nav});
+  });
+}
+
+/* ---------- HOME ---------- */
+function groupProgress(gid){
+  // segmentos: quantos exercícios do grupo tiveram progressão nos últimos 30 dias
+  const exs = state.exercises[gid];
+  const cutoff = Date.now() - 30*864e5;
+  const withProg = exs.filter(e=>e.rows.some(r=>r.lastInc && new Date(r.lastInc).getTime()>cutoff)).length;
+  return {total: exs.length, on: withProg};
+}
+
+function renderHome(){
+  header(`IRON <span class="logo-accent">OVERLOAD</span>`);
+  const lastLog = state.log[0];
+  $('main').innerHTML = `
+    <div class="kicker">Dashboard</div>
+    <div class="page-title">Progrida ou repita.<br>Nunca regrida.</div>
+    <div class="motto">⚡ Para evoluir: aumente a carga ou as repetições.</div>
+    <div class="grid">
+      ${GROUPS.map(g=>{
+        const p = groupProgress(g.id);
+        const segs = Array.from({length:Math.max(p.total,1)},(_,i)=>`<i class="${i<p.on?'on':''}"></i>`).join('');
+        return `
+        <button class="group-card" data-g="${g.id}">
+          <img class="group-img" src="images/group-${g.id}.jpg" alt="${g.name}" loading="lazy" data-icon="${g.icon}" onerror="imgFallback(this)">
+          <div class="group-body">
+            <div class="gname">${g.name}</div>
+            <div class="gcount">${p.total} exercícios</div>
+            <div class="seg-bar">${segs}</div>
+          </div>
+        </button>`;
+      }).join('')}
+    </div>
+    ${lastLog ? `
+    <div class="banner">
+      <div class="kicker">Recorde recente</div>
+      <p>Você aumentou <b>${lastLog.what}</b> no <b>${lastLog.exName}</b>${lastLog.delta?` (<b>${lastLog.delta}</b>)`:''}.</p>
+      <span class="when">${fmtDate(lastLog.date)}</span>
+    </div>` : `
+    <div class="banner" style="border-left-color:var(--yellow)">
+      <div class="kicker">Comece agora</div>
+      <p>Escolha um grupo muscular, abra um exercício e registre séries, repetições e carga. Quando você aumentar qualquer um deles, a data da progressão fica marcada.</p>
+    </div>`}
+  `;
+  $('main').querySelectorAll('[data-g]').forEach(b=>{
+    b.onclick = ()=>go({page:'group', groupId:b.dataset.g});
+  });
+}
+
+/* ---------- GRUPO ---------- */
+function bestCarga(ex){
+  const vals = ex.rows.map(r=>parseFloat(r.carga)).filter(v=>!isNaN(v));
+  return vals.length ? Math.max(...vals) : null;
+}
+function lastIncOf(ex){
+  const ds = ex.rows.map(r=>r.lastInc).filter(Boolean).sort();
+  return ds.length ? ds[ds.length-1] : null;
+}
+
+function exCardHTML(ex){
+  const carga = bestCarga(ex);
+  const li = lastIncOf(ex);
+  return `
+  <button class="ex-card" data-ex="${ex.id}">
+    <div class="ex-main">
+      <div class="ex-icon">${exIconHTML(ex)}</div>
+      <div class="ex-info">
+        <div class="ex-name">${ex.name}</div>
+        <div class="ex-last">${carga!==null ? `<b>${carga}</b> KG · ÚLTIMA CARGA` : 'SEM REGISTRO AINDA'}</div>
+      </div>
+      <div class="ex-chev">›</div>
+    </div>
+    <div class="ex-foot">
+      <span>Última progressão: ${li?fmtDate(li):'—'}</span>
+      <span class="go">Abrir ›</span>
+    </div>
+  </button>`;
+}
+
+function renderGroup(gid){
+  const g = GROUPS.find(x=>x.id===gid);
+  header(`Treino de ${g.name}`, {page:'home'});
+  const exs = state.exercises[gid];
+  let body;
+  if(gid==='pernas'){
+    const quad = exs.filter(e=>e.sub!=='post');
+    const post = exs.filter(e=>e.sub==='post');
+    body = `
+      <div class="subhead">Quadríceps</div>
+      ${quad.map(exCardHTML).join('')}
+      <div class="subhead">Posterior</div>
+      ${post.map(exCardHTML).join('')}`;
+  } else {
+    body = exs.map(exCardHTML).join('');
+  }
+  $('main').innerHTML = `
+    <div class="kicker">Grupo muscular</div>
+    <div class="page-title">${g.name}</div>
+    ${body}
+    <button class="add-btn" id="addEx">⊕ Adicionar exercício</button>
+  `;
+  $('main').querySelectorAll('[data-ex]').forEach(b=>{
+    b.onclick = ()=>go({page:'exercise', groupId:gid, exId:b.dataset.ex});
+  });
+  $('addEx').onclick = ()=>openAddModal(gid);
+}
+
+/* ---------- EXERCÍCIO ---------- */
+function renderExercise(gid, exId){
+  const g = GROUPS.find(x=>x.id===gid);
+  const ex = state.exercises[gid].find(e=>e.id===exId);
+  if(!ex){ go({page:'group', groupId:gid}); return; }
+  header(ex.name, {page:'group', groupId:gid});
+
+  $('main').innerHTML = `
+    <div class="kicker">Registro de progresso</div>
+    <div class="page-title">${ex.name}</div>
+    <div class="motto">⚡ Foque na progressão: aumente carga ou repetições!</div>
+    ${ex.custom===false ? `<img class="ex-hero" src="images/${ex.id}.jpg" alt="${ex.name}" data-icon="${ex.icon}" onerror="this.style.display='none'">` : ''}
+    <div class="meta-row">
+      <div class="meta-box"><div class="kicker">Grupo muscular</div><div class="val">${g.name}${ex.sub ? (ex.sub==='post'?' · Posterior':' · Quadríceps'):''}</div></div>
+      <div class="meta-box"><div class="kicker">Última progressão</div><div class="val" style="color:${lastIncOf(ex)===todayISO()?'var(--green)':'inherit'}">${lastIncOf(ex)?fmtDate(lastIncOf(ex)):'—'}</div></div>
+    </div>
+
+    <div class="log-wrap"><table class="log">
+      <thead><tr><th>#</th><th>Séries</th><th>Reps</th><th>Carga (kg)</th><th>Último aumento</th><th></th></tr></thead>
+      <tbody>
+        ${ex.rows.map((r,i)=>`
+        <tr>
+          <td style="font-family:'Archivo Narrow';font-weight:700;color:var(--text-dim)">${String(i+1).padStart(2,'0')}</td>
+          <td><input class="num-input" inputmode="decimal" data-f="series" data-i="${i}" value="${r.series}" placeholder="–"></td>
+          <td><input class="num-input" inputmode="decimal" data-f="reps" data-i="${i}" value="${r.reps}" placeholder="–"></td>
+          <td><input class="num-input" inputmode="decimal" data-f="carga" data-i="${i}" value="${r.carga}" placeholder="–"></td>
+          <td><span class="date-tag ${r.lastInc===todayISO()?'today':(r.lastInc?'':'empty')}" id="tag-${i}">${fmtDate(r.lastInc)}</span></td>
+          <td>${ex.rows.length>1?`<button class="row-del" data-del="${i}" title="Remover linha">✕</button>`:''}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>
+    <p class="hint">Edite os valores e toque em <b>salvar</b>. Se séries, repetições ou carga <b>aumentarem</b>, a data do último aumento vira <b>HOJE</b> e fica verde.</p>
+
+    <button class="add-btn" id="addRow" style="margin-top:16px">⊕ Adicionar linha</button>
+    <button class="cta" id="saveBtn">✓ Salvar registro</button>
+    ${ex.custom?`<button class="danger-link" id="delEx">Excluir este exercício</button>`:''}
+  `;
+
+  $('addRow').onclick = ()=>{
+    commitInputs(ex, false);
+    ex.rows.push(newRow());
+    save(); renderExercise(gid, exId);
+  };
+
+  $('main').querySelectorAll('[data-del]').forEach(b=>{
+    b.onclick = ()=>{
+      if(confirm('Remover esta linha?')){
+        commitInputs(ex, false);
+        ex.rows.splice(+b.dataset.del,1);
+        save(); renderExercise(gid, exId);
+      }
+    };
+  });
+
+  $('saveBtn').onclick = ()=>{
+    const progressed = commitInputs(ex, true);
+    save();
+    const btn = $('saveBtn');
+    btn.classList.add('saved');
+    btn.textContent = progressed ? '🏆 Progressão registrada!' : '✓ Salvo!';
+    setTimeout(()=>renderExercise(gid, exId), 900);
+  };
+
+  if(ex.custom){
+    $('delEx').onclick = ()=>{
+      if(confirm(`Excluir "${ex.name}"? Os registros serão perdidos.`)){
+        const arr = state.exercises[gid];
+        arr.splice(arr.findIndex(e=>e.id===exId),1);
+        save(); go({page:'group', groupId:gid});
+      }
+    };
+  }
+}
+
+/* Lê os inputs da tela para o estado; se track=true, detecta aumento e registra progressão */
+function commitInputs(ex, track){
+  let progressed = false;
+  const FIELD_LABEL = {series:'as séries', reps:'as repetições', carga:'a carga'};
+  document.querySelectorAll('.num-input').forEach(inp=>{
+    const i = +inp.dataset.i, f = inp.dataset.f;
+    const row = ex.rows[i];
+    if(!row) return;
+    const oldV = parseFloat(row.carga && f==='carga' ? row[f] : row[f]);
+    const oldNum = parseFloat(row[f]);
+    const newRaw = inp.value.trim().replace(',','.');
+    const newNum = parseFloat(newRaw);
+    if(track && !isNaN(newNum) && !isNaN(oldNum) && newNum > oldNum){
+      row.lastInc = todayISO();
+      progressed = true;
+      const delta = f==='carga' ? `+${+(newNum-oldNum).toFixed(1)}kg` : `+${+(newNum-oldNum).toFixed(0)}`;
+      state.log.unshift({date:todayISO(), exName:ex.name, what:FIELD_LABEL[f], delta, newVal:newRaw, field:f, exId:ex.id, exIcon:ex.icon, custom:ex.custom});
+      if(state.log.length>50) state.log.length = 50;
+      inp.classList.add('up');
+    }
+    row[f] = isNaN(newNum) ? '' : String(newNum);
+  });
+  return progressed;
+}
+
+/* ---------- HISTÓRICO ---------- */
+function renderHistory(){
+  header('Sua Evolução', {page:'home'});
+  const total = state.log.length;
+  $('main').innerHTML = `
+    <div class="kicker">Histórico</div>
+    <div class="page-title">Progressões</div>
+    <div class="meta-row">
+      <div class="meta-box"><div class="kicker">Progressões registradas</div><div class="val" style="font-size:32px">${total}</div></div>
+      <div class="meta-box" style="border-left:3px solid var(--green)"><div class="kicker">Última</div><div class="val" style="color:var(--green)">${total?fmtDate(state.log[0].date):'—'}</div></div>
+    </div>
+    ${total ? state.log.map(l=>`
+      <div class="hist-item">
+        <div class="ex-icon">${l.custom===false && l.exId ? `<img src="images/${l.exId}.jpg" alt="" loading="lazy" data-icon="${l.exIcon||'barbell'}" onerror="imgFallback(this)">` : (ICONS[l.exIcon]||ICONS.barbell)}</div>
+        <div class="hist-body">
+          <div class="hist-name">${l.exName}</div>
+          <div class="hist-delta">${l.delta} em ${l.what.replace('as ','').replace('a ','')} → ${l.newVal}${l.field==='carga'?'kg':''}</div>
+        </div>
+        <div class="hist-date">${fmtDate(l.date)}</div>
+      </div>`).join('')
+    : `<div class="empty-state">
+        ${ICONS.barbell}
+        <div>Nenhuma progressão ainda.<br>Aumente uma carga ou repetição e ela aparece aqui.</div>
+      </div>`}
+  `;
+}
+
+/* ---------- MODAL: ADICIONAR EXERCÍCIO ---------- */
+function openAddModal(gid){
+  const g = GROUPS.find(x=>x.id===gid);
+  let selIcon = 'dumbbell';
+  const iconKeys = Object.keys(ICONS);
+  $('modal').innerHTML = `
+    <h3>Novo exercício — ${g.name}</h3>
+    <label>Nome do exercício</label>
+    <input type="text" id="newName" placeholder="Ex.: Supino com halteres" maxlength="40">
+    ${gid==='pernas' ? `
+      <label>Região</label>
+      <div style="display:flex;gap:8px">
+        <button class="cancel" id="subQuad" style="padding:10px;border-color:var(--yellow);color:var(--yellow)">Quadríceps</button>
+        <button class="cancel" id="subPost" style="padding:10px">Posterior</button>
+      </div>`:''}
+    <label>Ícone</label>
+    <div class="icon-pick" id="iconPick">
+      ${iconKeys.map(k=>`<button data-ic="${k}" class="${k===selIcon?'sel':''}">${ICONS[k]}</button>`).join('')}
+    </div>
+    <div class="actions">
+      <button class="cancel" id="mCancel">Cancelar</button>
+      <button class="cta" id="mSave">Adicionar</button>
+    </div>
+  `;
+  $('modalBg').classList.add('open');
+  let sub = 'quad';
+  if(gid==='pernas'){
+    const q=$('subQuad'), p=$('subPost');
+    const paint=()=>{ q.style.borderColor=sub==='quad'?'var(--yellow)':'var(--border)'; q.style.color=sub==='quad'?'var(--yellow)':'var(--muted)';
+                      p.style.borderColor=sub==='post'?'var(--yellow)':'var(--border)'; p.style.color=sub==='post'?'var(--yellow)':'var(--muted)';};
+    q.onclick=()=>{sub='quad';paint();}; p.onclick=()=>{sub='post';paint();};
+  }
+  $('iconPick').querySelectorAll('button').forEach(b=>{
+    b.onclick = ()=>{
+      selIcon = b.dataset.ic;
+      $('iconPick').querySelectorAll('button').forEach(x=>x.classList.toggle('sel', x===b));
+    };
+  });
+  $('mCancel').onclick = closeModal;
+  $('modalBg').onclick = e=>{ if(e.target===$('modalBg')) closeModal(); };
+  $('mSave').onclick = ()=>{
+    const name = $('newName').value.trim();
+    if(!name){ $('newName').focus(); return; }
+    state.exercises[gid].push({
+      id:'c'+(state.nextId++), name, icon:selIcon,
+      sub: gid==='pernas'?sub:null, custom:true, rows:[newRow()],
+    });
+    save(); closeModal(); renderGroup(gid);
+  };
+  setTimeout(()=>$('newName').focus(), 50);
+}
+function closeModal(){ $('modalBg').classList.remove('open'); }
+
+/* =============== INIT =============== */
+load();
+render();
+
+/* =============== PWA: service worker (só funciona via http/https) =============== */
+if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>
