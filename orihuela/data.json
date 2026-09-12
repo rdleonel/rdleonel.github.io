@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-09-12T03:30:44.602Z",
+  "updatedAt": "2026-09-12T03:34:58.273Z",
   "quotes": {
     "INBR32": {
       "price": 29.1,
@@ -125,6 +125,10 @@
     "XPCM11": {
       "price": 7.93,
       "at": "2026-09-11T18:00:00.000Z"
+    },
+    "CVCB3": {
+      "price": 1.61,
+      "at": "2026-09-11T18:00:00.000Z"
     }
   },
   "clients": [
@@ -177,7 +181,7 @@
       "id": "c_mtxtv5bv9c4mt",
       "name": "RD",
       "cash": 0,
-      "capital": 0,
+      "capital": 539156.07,
       "bonusBase": null,
       "positions": [
         {
@@ -244,17 +248,32 @@
           "ticker": "IVVB11",
           "qty": -1456,
           "avgPrice": 443.99498
+        },
+        {
+          "ticker": "INBR32",
+          "qty": 10337,
+          "avgPrice": 29.507162
+        },
+        {
+          "ticker": "MUTC34",
+          "qty": 360,
+          "avgPrice": 751.318222
+        },
+        {
+          "ticker": "CVCB3",
+          "qty": 1,
+          "avgPrice": 6.72
         }
       ],
       "transactions": [],
       "history": [
         {
           "date": "2026-09-11",
-          "total": -21952.34,
-          "invested": -36340.73,
+          "total": 579481.17,
+          "invested": 539156.08,
           "cash": 0,
-          "capital": 0,
-          "ret": null
+          "capital": 539156.07,
+          "ret": 0.07479300010477496
         }
       ]
     }
