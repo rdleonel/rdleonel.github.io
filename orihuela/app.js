@@ -354,7 +354,7 @@
         stat('Investido', C.fmtBRL(r.invested), 'preço médio × cotas'),
         stat('Lucro em ações', C.fmtSignedBRL(r.profit), C.fmtPct(r.profitPct), signCls(r.profit))),
       h('div', { class: 'bonus-block' },
-        stat('Carteira no último bônus', r.bonusBase ? C.fmtBRL(r.bonusBase.value) : '—', r.bonusBase && r.bonusBase.date ? 'em ' + C.fmtDate(r.bonusBase.date) : 'toque em Editar para definir', '', 'big'),
+        stat('Carteira no último bônus', r.bonusBase ? C.fmtBRL(r.bonusBase.value) : '—', r.bonusBase && r.bonusBase.date ? 'em ' + C.fmtDate(r.bonusBase.date) : 'toque em Editar', '', 'big'),
         stat('vs. último bônus', r.vsBonus == null ? '—' : C.fmtPct(r.vsBonus), r.bonusBase ? C.fmtSignedBRL(r.total - r.bonusBase.value) : '', signCls(r.vsBonus), 'big'))));
 
     view.appendChild(h('div', { class: 'btn-row' },
@@ -371,16 +371,19 @@
       const signed = n => (n > 0 ? '+' : n < 0 ? '-' : '') + C.fmtNum(Math.abs(n));
       r.positions.forEach(p => {
         tbody.appendChild(h('tr', { class: 'clickable', onClick: () => positionDialog(c, p.ticker) },
-          h('td', {}, h('div', { class: 'tk' }, p.ticker, h('small', { text: (p.hasQuote ? C.fmtNum(p.price) : 'sem cotação') + ' · PM ' + C.fmtNum(p.avgPrice) }))),
-          h('td', { class: 'num', text: C.fmtInt(p.qty) }),
+          h('td', {}, h('div', { class: 'tk' }, p.ticker,
+            p.short ? h('span', { class: 'tag', text: 'vendida' }) : null,
+            p.hasQuote ? null : h('span', { class: 'tag warn', text: 'sem cotação' }),
+            h('small', {}, h('span', { class: 'qty-inline', text: C.fmtInt(p.qty) + ' cotas · ' }), 'PM ' + C.fmtNum(p.avgPrice), p.hasQuote ? h('span', { class: 'price-inline', text: ' · cot. ' + C.fmtNum(p.price) }) : null))),
+          h('td', { class: 'num col-qty', text: C.fmtInt(p.qty) }),
           h('td', { class: 'num', text: money(p.value) }),
           h('td', { class: 'num', text: money(p.invested) }),
           h('td', { class: 'num ' + signCls(p.profit) }, signed(p.profit), h('span', { class: 'sub ' + signCls(p.profit), text: C.fmtPct(p.profitPct) }))));
       });
       tbl.appendChild(h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl' },
-        h('thead', {}, h('tr', {}, h('th', { text: 'Ação' }), h('th', { text: 'Cotas' }), h('th', {}, 'Valor ', h('span', { class: 'unit', text: 'R$' })), h('th', {}, 'Investido ', h('span', { class: 'unit', text: 'R$' })), h('th', {}, 'Lucro ', h('span', { class: 'unit', text: 'R$' })))),
+        h('thead', {}, h('tr', {}, h('th', { text: 'Ação' }), h('th', { class: 'col-qty', text: 'Cotas' }), h('th', {}, 'Valor ', h('span', { class: 'unit', text: 'R$' })), h('th', {}, 'Investido ', h('span', { class: 'unit', text: 'R$' })), h('th', {}, 'Lucro ', h('span', { class: 'unit', text: 'R$' })))),
         tbody,
-        h('tfoot', {}, h('tr', {}, h('td', { text: 'Total' }), h('td', {}), h('td', { class: 'num', text: money(r.stocks) }), h('td', { class: 'num', text: money(r.invested) }), h('td', { class: 'num ' + signCls(r.profit) }, signed(r.profit), h('span', { class: 'sub ' + signCls(r.profit), text: C.fmtPct(r.profitPct) })))))));
+        h('tfoot', {}, h('tr', {}, h('td', { text: 'Total' }), h('td', { class: 'col-qty' }), h('td', { class: 'num', text: money(r.stocks) }), h('td', { class: 'num', text: money(r.invested) }), h('td', { class: 'num ' + signCls(r.profit) }, signed(r.profit), h('span', { class: 'sub ' + signCls(r.profit), text: C.fmtPct(r.profitPct) })))))));
     }
     view.appendChild(tbl);
 
@@ -408,14 +411,14 @@
     else {
       const list = h('div', { class: 'list' });
       c.transactions.slice().reverse().forEach(t => {
-        const isTrade = t.type === 'buy' || t.type === 'sell';
+        const isTrade = !!C.TRADE_TYPES[t.type];
         list.appendChild(h('button', { class: 'list-item', onClick: () => txDetailDialog(c, t) },
           h('div', { class: 'main' },
             h('div', { class: 't1' }, h('span', { class: 'tx-type ' + t.type, text: C.TX_TYPES[t.type] }), isTrade ? t.ticker : (t.type === 'bonus' ? 'Nova base' : '')),
             h('div', { class: 't2', text: C.fmtDate(t.date) + (isTrade ? ' · ' + C.fmtInt(t.qty) + ' × ' + C.fmtNum(t.price) : '') + (t.note ? ' · ' + t.note : '') })),
           h('div', { class: 'right' },
             h('div', { class: 'v1 num', text: C.fmtBRL(t.value) }),
-            t.type === 'sell' ? h('div', { class: 'v2 num ' + signCls(t.result), text: 'resultado ' + C.fmtSignedBRL(t.result) + ' (' + C.fmtPct(t.resultPct) + ')' }) : null)));
+            t.result != null ? h('div', { class: 'v2 num ' + signCls(t.result), text: (t.cover ? 'recompra · resultado ' : 'resultado ') + C.fmtSignedBRL(t.result) + ' (' + C.fmtPct(t.resultPct) + ')' }) : null)));
       });
       txCard.appendChild(list);
     }
@@ -505,7 +508,7 @@
       title: pos ? 'Editar ' + pos.ticker : 'Adicionar ação',
       fields: [
         { key: 'ticker', label: 'Código da ação', type: 'ticker', value: pos ? pos.ticker : '', placeholder: 'Ex.: PETR4', readOnly: !!pos },
-        { key: 'qty', label: 'Quantidade de cotas', type: 'decimal', value: pos ? String(pos.qty) : '' },
+        { key: 'qty', label: 'Quantidade de cotas', type: 'decimal', value: pos ? String(pos.qty) : '', hint: 'Negativa = posição vendida (aluguel tomador).' },
         { key: 'avg', label: 'Preço médio de aquisição (R$)', type: 'decimal', value: pos ? C.fmtNum(pos.avgPrice) : '' },
         pos ? null : { key: 'price', label: 'Cotação atual (R$)', type: 'decimal', value: '', placeholder: 'opcional, se ainda não houver' }
       ].filter(Boolean),
@@ -531,9 +534,9 @@
       fields: [
         { key: 'type', label: 'Tipo', type: 'select', value: 'buy', options: Object.keys(C.TX_TYPES).map(k => ({ value: k, label: C.TX_TYPES[k] })) },
         { key: 'date', label: 'Data', type: 'date', value: C.localDateISO() },
-        { key: 'ticker', label: 'Ação', type: 'ticker', value: '', placeholder: 'Ex.: PETR4', showIf: v => v.type === 'buy' || v.type === 'sell' },
-        { key: 'qty', label: 'Quantidade', type: 'decimal', value: '', showIf: v => v.type === 'buy' || v.type === 'sell' },
-        { key: 'price', label: 'Preço por ação (R$)', type: 'decimal', value: '', showIf: v => v.type === 'buy' || v.type === 'sell' },
+        { key: 'ticker', label: 'Ação', type: 'ticker', value: '', placeholder: 'Ex.: PETR4', showIf: v => !!C.TRADE_TYPES[v.type] },
+        { key: 'qty', label: 'Quantidade', type: 'decimal', value: '', showIf: v => !!C.TRADE_TYPES[v.type], hint: 'Para recomprar uma posição vendida, registre uma Compra.' },
+        { key: 'price', label: 'Preço por ação (R$)', type: 'decimal', value: '', showIf: v => !!C.TRADE_TYPES[v.type] },
         { key: 'value', label: 'Valor (R$)', type: 'decimal', value: '', showIf: v => v.type === 'deposit' || v.type === 'withdraw' },
         { key: 'bonusValue', label: 'Nova base (R$)', type: 'decimal', value: C.fmtNum(r.total), hint: 'Padrão: patrimônio total de hoje.', showIf: v => v.type === 'bonus' },
         { key: 'note', label: 'Observação', type: 'text', value: '', placeholder: 'opcional' }
@@ -544,7 +547,7 @@
           type: v.type, date: v.date, ticker: v.ticker, qty: v.qty, price: v.price,
           value: v.type === 'bonus' ? v.bonusValue : v.value, note: v.note
         }));
-        if (rec.type === 'sell') toast('Venda registrada. Resultado: ' + C.fmtSignedBRL(rec.result) + ' (' + C.fmtPct(rec.resultPct) + ').');
+        if (rec.result != null) toast((rec.cover ? 'Recompra' : 'Venda') + ' registrada. Resultado: ' + C.fmtSignedBRL(rec.result) + ' (' + C.fmtPct(rec.resultPct) + ').');
         else toast(C.TX_TYPES[rec.type] + ' registrada.');
       }
     });
@@ -554,7 +557,7 @@
     const rows = [['Tipo', C.TX_TYPES[t.type]], ['Data', C.fmtDate(t.date)]];
     if (t.ticker) rows.push(['Ação', t.ticker], ['Quantidade', C.fmtInt(t.qty)], ['Preço', C.fmtBRL(t.price)]);
     rows.push(['Valor', C.fmtBRL(t.value)]);
-    if (t.type === 'sell') rows.push(['Preço médio na venda', C.fmtBRL(t.avgPrice)], ['Resultado', C.fmtSignedBRL(t.result) + ' (' + C.fmtPct(t.resultPct) + ')']);
+    if (t.result != null) rows.push([t.cover ? 'Preço médio da venda' : 'Preço médio na venda', C.fmtBRL(t.avgPrice)], ['Resultado', C.fmtSignedBRL(t.result) + ' (' + C.fmtPct(t.resultPct) + ')']);
     if (t.note) rows.push(['Observação', t.note]);
     const kv = h('div', { class: 'kv' });
     rows.forEach(([k, v]) => { kv.appendChild(h('div', { text: k })); kv.appendChild(h('div', { text: v })); });
@@ -769,7 +772,8 @@
       const lx = X(xs[xs.length - 1]), ly = Y(last[key]);
       const label = s.fmt(last[key]);
       const anchor = lx > W - MR - 90 ? 'end' : 'start';
-      g.appendChild(svgEl('text', { class: 'end-label', x: anchor === 'end' ? lx - 8 : lx + 8, y: ly - 8, 'text-anchor': anchor }, label));
+      const labelY = ly - 8 < top + MT + 4 ? ly + 16 : ly - 8; // perto do topo do painel, escreve abaixo do ponto
+      g.appendChild(svgEl('text', { class: 'end-label', x: anchor === 'end' ? lx - 8 : lx + 8, y: labelY, 'text-anchor': anchor }, label));
       svg.appendChild(g);
       panelsMeta.push({ key, Y, top });
     });

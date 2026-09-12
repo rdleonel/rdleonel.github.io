@@ -14,6 +14,9 @@
  *   node orihuela/tools/cli.js position remove "Apelido" PETR4
  *   node orihuela/tools/cli.js tx "Apelido" buy PETR4 100 30,50 [--date D] [--note "..."]
  *   node orihuela/tools/cli.js tx "Apelido" sell PETR4 100 40,00 [--date D]
+ *   node orihuela/tools/cli.js tx "Apelido" short BOVA11 100 160,00 [--date D]   (venda a descoberto / aluguel tomador)
+ *   node orihuela/tools/cli.js tx "Apelido" buy BOVA11 100 150,00                (em posição vendida = recompra, com resultado)
+ *   node orihuela/tools/cli.js position set "Apelido" BOVA11 -182 110,40         (quantidade negativa = posição vendida)
  *   node orihuela/tools/cli.js tx "Apelido" deposit 1000 [--date D]
  *   node orihuela/tools/cli.js tx "Apelido" withdraw 1000 [--date D]
  *   node orihuela/tools/cli.js tx "Apelido" bonus [valor] [--date D]
@@ -173,18 +176,18 @@ switch (cmd) {
       break;
     }
     const tx = { type, date: dateOpt(), note: opts.note || '' };
-    if (type === 'buy' || type === 'sell') {
+    if (C.TRADE_TYPES[type]) {
       tx.ticker = args[3]; tx.qty = needNum(args[4], 'quantidade'); tx.price = needNum(args[5], 'preço');
     } else if (type === 'deposit' || type === 'withdraw') {
       tx.value = needNum(args[3], 'valor');
     } else if (type === 'bonus') {
       if (args[3] != null) tx.value = needNum(args[3], 'valor');
-    } else fail('tipo deve ser buy|sell|deposit|withdraw|bonus|undo');
+    } else fail('tipo deve ser buy|sell|short|deposit|withdraw|bonus|undo');
     let rec;
     try { rec = C.applyTransaction(d, c, tx); } catch (e) { fail(e.message); }
     saveData(d);
     let msg = c.name + ': ' + C.TX_TYPES[rec.type] + (rec.ticker ? ' ' + rec.ticker + ' ' + C.fmtInt(rec.qty) + ' × ' + C.fmtNum(rec.price) : '') + ' = ' + C.fmtBRL(rec.value) + ' em ' + C.fmtDate(rec.date) + '.';
-    if (rec.type === 'sell') msg += ' Resultado da venda: ' + C.fmtSignedBRL(rec.result) + ' (' + C.fmtPct(rec.resultPct) + ', PM ' + C.fmtNum(rec.avgPrice) + ').';
+    if (rec.result != null) msg += ' Resultado da ' + (rec.cover ? 'recompra' : 'venda') + ': ' + C.fmtSignedBRL(rec.result) + ' (' + C.fmtPct(rec.resultPct) + ', PM ' + C.fmtNum(rec.avgPrice) + ').';
     msg += ' Caixa agora: ' + C.fmtBRL(c.cash) + '.';
     console.log(msg);
     break;

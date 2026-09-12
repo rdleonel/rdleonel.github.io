@@ -35,6 +35,11 @@ pontos do histórico.
   posição restante não muda; o dinheiro da venda entra no caixa. Corretagem e
   emolumentos são ignorados.
 - Compra: novo preço médio ponderado; o valor sai do caixa.
+- Posição vendida (aluguel como tomador, quantidade negativa na XP): guardada com
+  quantidade negativa. Valor atual e investido ficam negativos e o lucro sai certo
+  (preço médio − cotação) × quantidade. "Venda a descoberto" abre ou aumenta a posição
+  vendida (o dinheiro entra no caixa); uma "Compra" sobre posição vendida é recompra e
+  calcula o resultado da operação. Não se cruza zero numa única operação.
 
 ## Como os dados circulam
 
@@ -84,6 +89,9 @@ node orihuela/tools/cli.js position set "Apelido" PETR4 200 31,40
 node orihuela/tools/cli.js position remove "Apelido" PETR4
 node orihuela/tools/cli.js tx "Apelido" buy PETR4 100 30,50 [--date D] [--note "..."]
 node orihuela/tools/cli.js tx "Apelido" sell PETR4 100 40,00 [--date D]
+node orihuela/tools/cli.js tx "Apelido" short BOVA11 100 160,00 [--date D]   (venda a descoberto)
+node orihuela/tools/cli.js tx "Apelido" buy BOVA11 100 150,00                (sobre posição vendida = recompra)
+node orihuela/tools/cli.js position set "Apelido" BOVA11 -182 110,40         (negativo = posição vendida)
 node orihuela/tools/cli.js tx "Apelido" deposit 1000 [--date D]
 node orihuela/tools/cli.js tx "Apelido" withdraw 1000 [--date D]
 node orihuela/tools/cli.js tx "Apelido" bonus [valor] [--date D]

@@ -23,6 +23,13 @@ app, então os números batem com a tela).
 3. Print de posição consolidada (cliente novo ou conferência): `client add` e depois
    `position set` para cada ação (quantidade e preço médio), `client edit --cash` para
    o saldo, e `client edit --bonus VALOR --bonus-date DATA` para a base do bônus.
+   Na carteira da XP, "Quantidade" negativa (aluguel como tomador) é posição vendida:
+   passe a quantidade negativa ao `position set`. O preço médio da XP vem arredondado
+   a 2 casas; para bater o "Resultado total" ao centavo, use
+   PM = (Posição − Resultado total) ÷ Quantidade com 5 ou 6 casas (ex.: `20,69358`).
+   Recompra de posição vendida é `tx ... buy`; abrir ou aumentar uma vendida é
+   `tx ... short`. Cada `tx` exige dígitos decimais com vírgula (`12,146`), porque
+   `12.146` seria lido como doze mil.
 4. Aporte, retirada ou bônus recebido: `tx "Apelido" deposit|withdraw VALOR` ou
    `tx "Apelido" bonus [VALOR]` (sem valor usa o patrimônio de hoje).
 5. Confira com `node orihuela/tools/cli.js show` e `validate`, depois commit e push.

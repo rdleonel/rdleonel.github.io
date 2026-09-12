@@ -117,7 +117,7 @@
     } else c.bonusBase = null;
     c.positions = (c.positions || []).map(p => ({
       ticker: normTicker(p.ticker), qty: num(p.qty), avgPrice: num(p.avgPrice)
-    })).filter(p => p.ticker && p.qty > 0);
+    })).filter(p => p.ticker && Number.isFinite(p.qty) && p.qty !== 0); // qty < 0 = posição vendida (aluguel tomador)
     c.transactions = (c.transactions || []).map(t => Object.assign({ id: uid('t') }, t));
     c.history = (c.history || []).filter(h => isISODate(h.date)).map(h => ({
       date: h.date, total: num(h.total), invested: num(h.invested), cash: num(h.cash),
@@ -184,9 +184,10 @@
         ticker: p.ticker, qty: p.qty, avgPrice: p.avgPrice, price, hasQuote,
         quoteAt: hasQuote ? q.at : null,
         value: round2(value), invested: round2(invested), profit: round2(profit),
-        profitPct: invested > 0 ? profit / invested : 0
+        profitPct: invested !== 0 ? profit / Math.abs(invested) : 0,
+        short: p.qty < 0
       };
-    }).sort((a, b) => b.value - a.value);
+    }).sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
     const invested = positions.reduce((s, p) => s + p.invested, 0);
     const stocks = positions.reduce((s, p) => s + p.value, 0);
     const cash = client.cash || 0;
@@ -200,7 +201,7 @@
       id: client.id, name: client.name, positions,
       invested: round2(invested), stocks: round2(stocks), cash: round2(cash),
       total: round2(total), profit: round2(profit),
-      profitPct: invested > 0 ? profit / invested : 0,
+      profitPct: invested !== 0 ? profit / Math.abs(invested) : 0,
       capital: round2(capital), ret, bonusBase: bb, vsBonus,
       missingQuotes: positions.filter(p => !p.hasQuote).map(p => p.ticker)
     };
@@ -250,7 +251,8 @@
   }
 
   // ---------- operações ----------
-  const TX_TYPES = { buy: 'Compra', sell: 'Venda', deposit: 'Aporte', withdraw: 'Retirada', bonus: 'Bônus (nova base)' };
+  const TX_TYPES = { buy: 'Compra', sell: 'Venda', short: 'Venda a descoberto', deposit: 'Aporte', withdraw: 'Retirada', bonus: 'Bônus (nova base)' };
+  const TRADE_TYPES = { buy: true, sell: true, short: true };
 
   function findPosition(client, ticker) { return client.positions.find(p => p.ticker === ticker) || null; }
 
@@ -263,7 +265,7 @@
     const rec = { id: uid('t'), date, type, note: String(tx.note || '').trim(), prev: {} };
     const prevCash = client.cash;
 
-    if (type === 'buy' || type === 'sell') {
+    if (TRADE_TYPES[type]) {
       const ticker = normTicker(tx.ticker);
       const qty = num(tx.qty, NaN), price = num(tx.price, NaN);
       if (!ticker) throw new Error('Informe o código da ação.');
@@ -272,22 +274,40 @@
       rec.ticker = ticker; rec.qty = qty; rec.price = round2(price); rec.value = round2(qty * price);
       const pos = findPosition(client, ticker);
       rec.prev = { qty: pos ? pos.qty : 0, avgPrice: pos ? pos.avgPrice : 0, cash: prevCash };
-      if (type === 'buy') {
+      const removeIfFlat = () => { if (Math.abs(pos.qty) <= 1e-9) client.positions = client.positions.filter(p => p !== pos); };
+      if (type === 'buy' && pos && pos.qty < 0) {
+        // recompra de posição vendida: resultado = (preço médio da venda − preço de recompra) × qtd
+        if (qty > -pos.qty + 1e-9) throw new Error('Quantidade maior que a posição vendida (' + (-pos.qty) + '). Recompre tudo antes de comprar além disso.');
+        rec.avgPrice = round2(pos.avgPrice);
+        rec.result = round2((pos.avgPrice - price) * qty);
+        rec.resultPct = pos.avgPrice > 0 ? 1 - price / pos.avgPrice : 0;
+        rec.cover = true;
+        pos.qty += qty; removeIfFlat();
+        client.cash = round2(client.cash - qty * price);
+      } else if (type === 'buy') {
         if (pos) {
           pos.avgPrice = (pos.qty * pos.avgPrice + qty * price) / (pos.qty + qty);
           pos.qty += qty;
         } else client.positions.push({ ticker, qty, avgPrice: price });
         client.cash = round2(client.cash - qty * price);
         if (!(data.quotes[ticker])) data.quotes[ticker] = { price: round2(price), at: new Date().toISOString() };
-      } else {
-        if (!pos) throw new Error(client.name + ' não possui ' + ticker + '.');
+      } else if (type === 'sell') {
+        if (!pos) throw new Error(client.name + ' não possui ' + ticker + '. Para abrir posição vendida use "Venda a descoberto".');
+        if (pos.qty < 0) throw new Error(ticker + ' é uma posição vendida: use "Venda a descoberto" para aumentar ou "Compra" para recomprar.');
         if (qty > pos.qty + 1e-9) throw new Error('Quantidade maior que a posição (' + pos.qty + ').');
         rec.avgPrice = round2(pos.avgPrice);
         rec.result = round2((price - pos.avgPrice) * qty);
         rec.resultPct = pos.avgPrice > 0 ? price / pos.avgPrice - 1 : 0;
-        pos.qty -= qty;
-        if (pos.qty <= 1e-9) client.positions = client.positions.filter(p => p !== pos);
+        pos.qty -= qty; removeIfFlat();
         client.cash = round2(client.cash + qty * price);
+      } else { // short: abre ou aumenta posição vendida (aluguel tomador)
+        if (pos && pos.qty > 0) throw new Error(ticker + ' é uma posição comprada: use "Venda" para reduzi-la.');
+        if (pos) {
+          pos.avgPrice = (-pos.qty * pos.avgPrice + qty * price) / (-pos.qty + qty);
+          pos.qty -= qty;
+        } else client.positions.push({ ticker, qty: -qty, avgPrice: price });
+        client.cash = round2(client.cash + qty * price);
+        if (!(data.quotes[ticker])) data.quotes[ticker] = { price: round2(price), at: new Date().toISOString() };
       }
     } else if (type === 'deposit' || type === 'withdraw') {
       const value = num(tx.value, NaN);
@@ -322,9 +342,9 @@
     if (revert) {
       if (i !== client.transactions.length - 1) throw new Error('Só a última operação pode ser desfeita.');
       const prev = rec.prev || {};
-      if (rec.type === 'buy' || rec.type === 'sell') {
+      if (TRADE_TYPES[rec.type]) {
         client.positions = client.positions.filter(p => p.ticker !== rec.ticker);
-        if (prev.qty > 0) client.positions.push({ ticker: rec.ticker, qty: prev.qty, avgPrice: prev.avgPrice });
+        if (prev.qty && prev.qty !== 0) client.positions.push({ ticker: rec.ticker, qty: prev.qty, avgPrice: prev.avgPrice });
         if (Number.isFinite(prev.cash)) client.cash = prev.cash;
       } else if (rec.type === 'deposit' || rec.type === 'withdraw') {
         if (Number.isFinite(prev.cash)) client.cash = prev.cash;
@@ -349,7 +369,7 @@
   function setPosition(data, client, ticker, qty, avgPrice) {
     ticker = normTicker(ticker); qty = num(qty, NaN); avgPrice = num(avgPrice, NaN);
     if (!ticker) throw new Error('Informe o código da ação.');
-    if (!(qty >= 0)) throw new Error('Quantidade inválida.');
+    if (!Number.isFinite(qty)) throw new Error('Quantidade inválida (negativa = posição vendida).');
     if (!(avgPrice >= 0)) throw new Error('Preço médio inválido.');
     const pos = findPosition(client, ticker);
     if (qty === 0) { client.positions = client.positions.filter(p => p.ticker !== ticker); }
@@ -398,7 +418,7 @@
       lines.push('');
       lines.push(r.name + ' [' + r.id + ']');
       lines.push('  Patrimônio ' + fmtBRL(r.total) + ' | Caixa ' + fmtBRL(r.cash) + ' | Investido ' + fmtBRL(r.invested) + ' | Lucro ' + fmtSignedBRL(r.profit) + ' | Rentab. ' + fmtPct(r.ret) + (r.bonusBase ? ' | Base bônus ' + fmtBRL(r.bonusBase.value) + ' (' + fmtDate(r.bonusBase.date) + ') ' + fmtPct(r.vsBonus) : ' | sem base de bônus'));
-      r.positions.forEach(p => lines.push('  ' + p.ticker.padEnd(7) + String(p.qty).padStart(7) + '  ' + fmtBRL(p.value).padStart(16) + '  ' + fmtBRL(p.invested).padStart(16) + '  ' + fmtSignedBRL(p.profit).padStart(17) + (p.hasQuote ? '' : '  (sem cotação)')));
+      r.positions.forEach(p => lines.push('  ' + p.ticker.padEnd(7) + String(p.qty).padStart(7) + '  ' + fmtBRL(p.value).padStart(16) + '  ' + fmtBRL(p.invested).padStart(16) + '  ' + fmtSignedBRL(p.profit).padStart(17) + ' ' + fmtPct(p.profitPct).padStart(9) + (p.short ? '  (vendida)' : '') + (p.hasQuote ? '' : '  (sem cotação)')));
       lines.push('  Histórico: ' + r.positions.length + ' posições, ' + (data.clients.find(c => c.id === r.id).history.length) + ' pontos');
     });
     return lines.join('\n');
@@ -410,7 +430,7 @@
     emptyData, newClient, normalize, touch, findClient,
     investedOf, tickerSummary, tickers, missingQuotes, computeClient, computeAll,
     setQuotes, pruneQuotes, snapshotAll, snapshotClient, upsertHistory,
-    TX_TYPES, applyTransaction, isLastTransaction, removeTransaction,
+    TX_TYPES, TRADE_TYPES, applyTransaction, isLastTransaction, removeTransaction,
     autoCapital, setPosition, removePosition, addClient, removeClient, updateClient,
     summaryText
   };

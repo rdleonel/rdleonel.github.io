@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-09-11T18:05:00.000Z",
+  "updatedAt": "2026-09-12T02:36:58.129Z",
   "quotes": {
     "PETR4": {
       "price": 38.12,
@@ -21,113 +21,71 @@
     "BBAS3": {
       "price": 22.95,
       "at": "2026-09-11T18:00:00.000Z"
+    },
+    "INBR32": {
+      "price": 48.39,
+      "at": "2026-09-12T02:36:29.794Z"
+    },
+    "DASA3": {
+      "price": 3.83,
+      "at": "2026-09-12T02:36:29.794Z"
+    },
+    "BPAC11": {
+      "price": 56.97,
+      "at": "2026-09-12T02:36:29.794Z"
+    },
+    "ROMI3": {
+      "price": 8.17,
+      "at": "2026-09-12T02:36:29.794Z"
+    },
+    "BOVA11": {
+      "price": 160.81,
+      "at": "2026-09-12T02:36:29.794Z"
     }
   },
   "clients": [
     {
-      "id": "c_exemplo",
-      "name": "Exemplo",
-      "cash": 4405,
-      "capital": 34465,
-      "bonusBase": {
-        "value": 36000,
-        "date": "2026-06-30"
-      },
+      "id": "c_mtxrxe81pmmel",
+      "name": "Felipe",
+      "cash": 0,
+      "capital": 184689.44,
+      "bonusBase": null,
       "positions": [
         {
-          "ticker": "PETR4",
-          "qty": 200,
-          "avgPrice": 31.4
+          "ticker": "INBR32",
+          "qty": 4237,
+          "avgPrice": 20.69358
         },
         {
-          "ticker": "VALE3",
-          "qty": 100,
-          "avgPrice": 58.9
+          "ticker": "DASA3",
+          "qty": 34600,
+          "avgPrice": 2.755925
         },
         {
-          "ticker": "ITUB4",
-          "qty": 300,
-          "avgPrice": 27.15
+          "ticker": "BPAC11",
+          "qty": 1000,
+          "avgPrice": 21.87
         },
         {
-          "ticker": "WEGE3",
-          "qty": 150,
-          "avgPrice": 39.6
+          "ticker": "ROMI3",
+          "qty": -10,
+          "avgPrice": 12.146
         },
         {
-          "ticker": "BBAS3",
-          "qty": 150,
-          "avgPrice": 24.8
+          "ticker": "BOVA11",
+          "qty": -182,
+          "avgPrice": 110.4
         }
       ],
-      "transactions": [
-        {
-          "id": "t_mtxpmdwgs7vbt",
-          "date": "2026-09-11",
-          "type": "sell",
-          "note": "exemplo",
-          "prev": {
-            "qty": 200,
-            "avgPrice": 24.8,
-            "cash": 3250
-          },
-          "ticker": "BBAS3",
-          "qty": 50,
-          "price": 23.1,
-          "value": 1155,
-          "avgPrice": 24.8,
-          "result": -85,
-          "resultPct": -0.06854838709677413
-        }
-      ],
+      "transactions": [],
       "history": [
         {
-          "date": "2026-06-30",
-          "total": 36000,
-          "invested": 31215,
-          "cash": 3250,
-          "capital": 34465,
-          "ret": 0.04453793703757425
-        },
-        {
-          "date": "2026-07-15",
-          "total": 36420.5,
-          "invested": 31215,
-          "cash": 3250,
-          "capital": 34465,
-          "ret": 0.056738720441027235
-        },
-        {
-          "date": "2026-07-31",
-          "total": 35870.2,
-          "invested": 31215,
-          "cash": 3250,
-          "capital": 34465,
-          "ret": 0.04077179747569981
-        },
-        {
-          "date": "2026-08-15",
-          "total": 36980.7,
-          "invested": 31215,
-          "cash": 3250,
-          "capital": 34465,
-          "ret": 0.07299289133903941
-        },
-        {
-          "date": "2026-08-31",
-          "total": 37310.4,
-          "invested": 31215,
-          "cash": 3250,
-          "capital": 34465,
-          "ret": 0.08255911794574211
-        },
-        {
-          "date": "2026-09-11",
-          "total": 38356.5,
-          "invested": 29975,
-          "cash": 4405,
-          "capital": 34465,
-          "ret": 0.11291164949949217
+          "date": "2026-09-12",
+          "total": 365167.31,
+          "invested": 184689.45,
+          "cash": 0,
+          "capital": 184689.44,
+          "ret": 0.977196476420092
         }
       ]
     }
