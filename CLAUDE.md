@@ -41,3 +41,21 @@ Se o usuário colar um JSON exportado pelo app, substitua `orihuela/data.json` p
 
 Use só apelidos para clientes: o site é público. Ao alterar `orihuela/index.html`,
 `app.js`, `styles.css` ou `core.js`, incremente `CACHE` em `orihuela/sw.js`.
+
+## Orihuela: estado atual e pendências (atualize esta seção ao fim de cada sessão)
+
+- Clientes cadastrados: Felipe (5 ativos) e RD (16 ativos, carteira do próprio
+  usuário, conferida contra o print de custódia de 11/09/2026). Cotações de
+  fechamento de 11/09/2026 para 27 papéis; primeiro ponto do gráfico dos dois
+  clientes nessa data.
+- Pendências de dados: saldo em caixa e base do último bônus (valor e data) de
+  Felipe e RD; custo real de MAXR11, RNGO11 e XPCM11 no RD (a XP mostra preço
+  médio "Indefinido", então estão com preço médio igual à cotação e lucro zero);
+  BPAC11 e ROMI3 do Felipe ainda com preço do print da carteira, não do
+  fechamento.
+- Os demais clientes (mais de 30) serão cadastrados aos poucos por prints da XP:
+  aba Carteira (traz preço médio) e, se possível, aba Custódia (lista completa
+  para conferência). Sempre devolver ao usuário a tabela comparada antes de
+  encerrar.
+- Rentabilidade acumulada = patrimônio ÷ capital aportado − 1. Enquanto o cliente
+  não tem operações registradas, o capital acompanha investido + caixa.
