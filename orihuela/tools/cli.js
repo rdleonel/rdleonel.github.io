@@ -80,7 +80,7 @@ switch (cmd) {
     const missing = C.missingQuotes(d);
     if (missing.length) problems.push('Ações sem cotação: ' + missing.join(', '));
     d.clients.forEach(c => {
-      if (!(c.capital > 0) && (c.positions.length || c.cash)) problems.push(c.name + ': capital aportado não definido');
+      if (!(c.capital > 0) && (c.positions.length || c.cash)) problems.push(c.name + ': capital aportado não definido (rentabilidade indefinida); use client edit "' + c.name + '" --capital VALOR ou --cash VALOR');
       if (!c.bonusBase) problems.push(c.name + ': sem base de bônus');
       if (c.cash < 0) problems.push(c.name + ': caixa negativo (' + C.fmtBRL(c.cash) + ')');
     });
@@ -207,7 +207,7 @@ switch (cmd) {
     const c = getClient(d, args[1]);
     const date = args[2]; if (!C.isISODate(date)) fail('data deve ser AAAA-MM-DD');
     const total = needNum(args[3], 'patrimônio');
-    const ret = opts.ret != null ? needNum(opts.ret, 'rentabilidade') / 100 : (c.capital > 0 ? total / c.capital - 1 : 0);
+    const ret = opts.ret != null ? needNum(opts.ret, 'rentabilidade') / 100 : (c.capital > 0 ? total / c.capital - 1 : null);
     C.upsertHistory(c, { date, total: C.round2(total), invested: 0, cash: 0, capital: c.capital, ret });
     C.touch(d);
     saveData(d);

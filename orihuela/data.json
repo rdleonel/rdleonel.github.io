@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-09-12T03:26:23.666Z",
+  "updatedAt": "2026-09-12T03:30:44.602Z",
   "quotes": {
     "INBR32": {
       "price": 29.1,
@@ -109,6 +109,22 @@
     "ITLC34": {
       "price": 88.2,
       "at": "2026-09-11T18:00:00.000Z"
+    },
+    "BRKM5": {
+      "price": 5.24,
+      "at": "2026-09-11T18:00:00.000Z"
+    },
+    "MAXR11": {
+      "price": 49.95,
+      "at": "2026-09-11T18:00:00.000Z"
+    },
+    "RNGO11": {
+      "price": 52.89,
+      "at": "2026-09-11T18:00:00.000Z"
+    },
+    "XPCM11": {
+      "price": 7.93,
+      "at": "2026-09-11T18:00:00.000Z"
     }
   },
   "clients": [
@@ -154,6 +170,91 @@
           "cash": 0,
           "capital": 184689.44,
           "ret": 0.2889308668649382
+        }
+      ]
+    },
+    {
+      "id": "c_mtxtv5bv9c4mt",
+      "name": "RD",
+      "cash": 0,
+      "capital": 0,
+      "bonusBase": null,
+      "positions": [
+        {
+          "ticker": "ROXO34",
+          "qty": 23080,
+          "avgPrice": 13.264718
+        },
+        {
+          "ticker": "COGN3",
+          "qty": 84900,
+          "avgPrice": 2.109397
+        },
+        {
+          "ticker": "AMZO34",
+          "qty": 1089,
+          "avgPrice": 66.079733
+        },
+        {
+          "ticker": "GMAT3",
+          "qty": 13200,
+          "avgPrice": 4.464911
+        },
+        {
+          "ticker": "M2RV34",
+          "qty": 500,
+          "avgPrice": 111.35
+        },
+        {
+          "ticker": "VAMO3",
+          "qty": 16500,
+          "avgPrice": 2.48
+        },
+        {
+          "ticker": "MAXR11",
+          "qty": 38,
+          "avgPrice": 49.95
+        },
+        {
+          "ticker": "BRKM5",
+          "qty": 200,
+          "avgPrice": 33.8
+        },
+        {
+          "ticker": "RNGO11",
+          "qty": 1,
+          "avgPrice": 52.89
+        },
+        {
+          "ticker": "XPCM11",
+          "qty": 3,
+          "avgPrice": 7.93
+        },
+        {
+          "ticker": "PRIO3",
+          "qty": -4,
+          "avgPrice": 63.8
+        },
+        {
+          "ticker": "BOVA11",
+          "qty": -609,
+          "avgPrice": 182.42
+        },
+        {
+          "ticker": "IVVB11",
+          "qty": -1456,
+          "avgPrice": 443.99498
+        }
+      ],
+      "transactions": [],
+      "history": [
+        {
+          "date": "2026-09-11",
+          "total": -21952.34,
+          "invested": -36340.73,
+          "cash": 0,
+          "capital": 0,
+          "ret": null
         }
       ]
     }

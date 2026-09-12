@@ -121,10 +121,10 @@
     c.transactions = (c.transactions || []).map(t => Object.assign({ id: uid('t') }, t));
     c.history = (c.history || []).filter(h => isISODate(h.date)).map(h => ({
       date: h.date, total: num(h.total), invested: num(h.invested), cash: num(h.cash),
-      capital: num(h.capital), ret: Number.isFinite(h.ret) ? h.ret : num(h.ret, 0)
+      capital: num(h.capital), ret: Number.isFinite(h.ret) ? h.ret : (Number.isFinite(num(h.ret, NaN)) ? num(h.ret) : null)
     })).sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
-    // Cliente sem capital definido: assume custo das ações + caixa.
-    if (!(c.capital > 0)) c.capital = round2(investedOf(c) + c.cash);
+    // Cliente sem capital definido: assume custo das ações + caixa (nunca negativo).
+    if (!(c.capital > 0)) c.capital = Math.max(0, round2(investedOf(c) + c.cash));
     return c;
   }
   function normalize(data) {
@@ -193,8 +193,9 @@
     const cash = client.cash || 0;
     const total = stocks + cash;
     const profit = stocks - invested;
-    const capital = client.capital > 0 ? client.capital : (invested + cash);
-    const ret = capital > 0 ? total / capital - 1 : 0;
+    // Capital aportado <= 0 (vendidas superam compradas e sem caixa informado): rentabilidade indefinida.
+    const capital = client.capital > 0 ? client.capital : Math.max(0, invested + cash);
+    const ret = capital > 0 ? total / capital - 1 : null;
     const bb = client.bonusBase;
     const vsBonus = bb && bb.value > 0 ? total / bb.value - 1 : null;
     return {
@@ -363,7 +364,7 @@
   // aportado acompanha automaticamente investido + caixa. Depois disso, só muda com
   // aporte/retirada ou edição explícita.
   function autoCapital(client) {
-    if (!client.transactions.length) client.capital = round2(investedOf(client) + (client.cash || 0));
+    if (!client.transactions.length) client.capital = Math.max(0, round2(investedOf(client) + (client.cash || 0)));
     return client.capital;
   }
   function setPosition(data, client, ticker, qty, avgPrice) {

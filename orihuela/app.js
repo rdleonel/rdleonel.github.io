@@ -348,7 +348,7 @@
       h('div', { class: 'hero' },
         h('div', { class: 'label', text: 'Patrimônio total' }),
         h('div', { class: 'value num', text: C.fmtBRL(r.total) }),
-        h('div', { class: 'delta num ' + signCls(r.ret), text: 'Rentabilidade acumulada ' + C.fmtPct(r.ret) })),
+        h('div', { class: 'delta num ' + signCls(r.ret), text: r.ret == null ? 'Rentabilidade indefinida: defina o capital aportado em Editar' : 'Rentabilidade acumulada ' + C.fmtPct(r.ret) })),
       h('div', { class: 'stats' },
         stat('Caixa', C.fmtBRL(r.cash)),
         stat('Investido', C.fmtBRL(r.invested), 'preço médio × cotas'),
@@ -464,8 +464,8 @@
         if (!C.isISODate(v.date)) throw new Error('Data inválida.');
         const total = C.parseNum(v.total);
         if (!Number.isFinite(total)) throw new Error('Patrimônio inválido.');
-        let ret = v.ret.trim() ? C.parseNum(v.ret) / 100 : (c.capital > 0 ? total / c.capital - 1 : 0);
-        if (!Number.isFinite(ret)) throw new Error('Rentabilidade inválida.');
+        let ret = v.ret.trim() ? C.parseNum(v.ret) / 100 : (c.capital > 0 ? total / c.capital - 1 : null);
+        if (ret !== null && !Number.isFinite(ret)) throw new Error('Rentabilidade inválida.');
         mutate(data => { C.upsertHistory(c, { date: v.date, total: C.round2(total), invested: 0, cash: 0, capital: c.capital, ret }); C.touch(data); });
         toast('Ponto salvo.');
       }
@@ -583,7 +583,7 @@
     const sorters = {
       name: (a, b) => a.name.localeCompare(b.name, 'pt-BR'),
       total: (a, b) => b.total - a.total,
-      ret: (a, b) => b.ret - a.ret,
+      ret: (a, b) => (b.ret == null ? -Infinity : b.ret) - (a.ret == null ? -Infinity : a.ret),
       bonus: (a, b) => (b.vsBonus == null ? -Infinity : b.vsBonus) - (a.vsBonus == null ? -Infinity : a.vsBonus)
     };
     const labels = { name: 'Nome', total: 'Patrimônio', ret: 'Rentabilidade', bonus: 'vs. bônus' };
@@ -745,12 +745,21 @@
     active.forEach((key, i) => {
       const s = SERIES[key];
       const top = i * (PH + GAP);
-      const vals = pts.map(p => p[key]);
+      const lpts = pts.filter(p => Number.isFinite(p[key])); // pontos com valor nesta camada
+      const g = svgEl('g');
+      g.appendChild(svgEl('text', { x: ML, y: top + 12, class: 'panel-title' }, s.label.toUpperCase()));
+      if (!lpts.length) {
+        g.appendChild(svgEl('text', { x: ML, y: top + MT + 40, class: 'axis' }, key === 'ret' ? 'Sem rentabilidade: defina o capital aportado em Editar.' : 'Sem dados.'));
+        svg.appendChild(g);
+        panelsMeta.push({ key, Y: () => top + MT, top, empty: true });
+        return;
+      }
+      const lxs = lpts.map(p => new Date(p.date + 'T12:00:00').getTime());
+      const vals = lpts.map(p => p[key]);
       let vmin = Math.min.apply(null, vals), vmax = Math.max.apply(null, vals);
       if (key === 'ret') { vmin = Math.min(vmin, 0); vmax = Math.max(vmax, 0); }
       const nt = niceTicks(vmin, vmax, 4);
       const Y = v => top + MT + (1 - (v - nt.lo) / ((nt.hi - nt.lo) || 1)) * (PH - MT - 6);
-      const g = svgEl('g');
       // grade + eixo y
       const grid = svgEl('g', { class: 'grid' }), axis = svgEl('g', { class: 'axis' });
       nt.ticks.forEach(v => {
@@ -758,18 +767,17 @@
         axis.appendChild(svgEl('text', { x: ML - 6, y: Y(v) + 3, 'text-anchor': 'end' }, s.tick(v)));
       });
       g.appendChild(grid); g.appendChild(axis);
-      g.appendChild(svgEl('text', { x: ML, y: top + 12, class: 'panel-title' }, s.label.toUpperCase()));
       // área e linha
-      if (pts.length > 1) {
-        const d = pts.map((p, j) => (j ? 'L' : 'M') + X(xs[j]).toFixed(1) + ' ' + Y(p[key]).toFixed(1)).join(' ');
+      if (lpts.length > 1) {
+        const d = lpts.map((p, j) => (j ? 'L' : 'M') + X(lxs[j]).toFixed(1) + ' ' + Y(p[key]).toFixed(1)).join(' ');
         const base = Y(key === 'ret' ? Math.max(nt.lo, Math.min(0, nt.hi)) : nt.lo);
-        g.appendChild(svgEl('path', { class: 'area', fill: s.color, d: d + ' L' + X(xs[xs.length - 1]).toFixed(1) + ' ' + base.toFixed(1) + ' L' + X(xs[0]).toFixed(1) + ' ' + base.toFixed(1) + ' Z' }));
+        g.appendChild(svgEl('path', { class: 'area', fill: s.color, d: d + ' L' + X(lxs[lxs.length - 1]).toFixed(1) + ' ' + base.toFixed(1) + ' L' + X(lxs[0]).toFixed(1) + ' ' + base.toFixed(1) + ' Z' }));
         g.appendChild(svgEl('path', { class: 'line', stroke: s.color, d }));
       }
-      const last = pts[pts.length - 1];
-      g.appendChild(svgEl('circle', { class: 'dot', cx: X(xs[xs.length - 1]), cy: Y(last[key]), r: 4, fill: s.color }));
+      const last = lpts[lpts.length - 1];
+      g.appendChild(svgEl('circle', { class: 'dot', cx: X(lxs[lxs.length - 1]), cy: Y(last[key]), r: 4, fill: s.color }));
       // rótulo do último valor
-      const lx = X(xs[xs.length - 1]), ly = Y(last[key]);
+      const lx = X(lxs[lxs.length - 1]), ly = Y(last[key]);
       const label = s.fmt(last[key]);
       const anchor = lx > W - MR - 90 ? 'end' : 'start';
       const labelY = ly - 8 < top + MT + 4 ? ly + 16 : ly - 8; // perto do topo do painel, escreve abaixo do ponto
@@ -821,7 +829,10 @@
       xs.forEach((t, j) => { const d = Math.abs(X(t) - px); if (d < bd) { bd = d; best = j; } });
       const p = pts[best], cx = X(xs[best]);
       cross.setAttribute('x1', cx); cross.setAttribute('x2', cx); cross.style.display = '';
-      panelsMeta.forEach((m, i) => { dots[i].setAttribute('cx', cx); dots[i].setAttribute('cy', m.Y(p[m.key])); dots[i].style.display = ''; });
+      panelsMeta.forEach((m, i) => {
+        if (m.empty || !Number.isFinite(p[m.key])) { dots[i].style.display = 'none'; return; }
+        dots[i].setAttribute('cx', cx); dots[i].setAttribute('cy', m.Y(p[m.key])); dots[i].style.display = '';
+      });
       tip.innerHTML = '';
       tip.appendChild(h('div', { class: 'd', text: C.fmtDate(p.date) }));
       panelsMeta.forEach(m => tip.appendChild(h('div', { class: 'r' }, h('span', { class: 'key', style: 'background:' + SERIES[m.key].color }), SERIES[m.key].label, h('b', { text: SERIES[m.key].fmt(p[m.key]) }))));
