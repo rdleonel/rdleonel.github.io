@@ -97,6 +97,7 @@ node orihuela/tools/cli.js tx "Apelido" withdraw 1000 [--date D]
 node orihuela/tools/cli.js tx "Apelido" bonus [valor] [--date D]
 node orihuela/tools/cli.js tx "Apelido" undo
 node orihuela/tools/cli.js point "Apelido" 2026-06-30 36000 [--ret 5,2]
+node orihuela/tools/cli.js point remove "Apelido" 2026-06-30
 ```
 
 `quotes` registra automaticamente um ponto no histórico de todos os clientes na data

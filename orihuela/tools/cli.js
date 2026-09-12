@@ -22,6 +22,7 @@
  *   node orihuela/tools/cli.js tx "Apelido" bonus [valor] [--date D]
  *   node orihuela/tools/cli.js tx "Apelido" undo            (desfaz a última operação)
  *   node orihuela/tools/cli.js point "Apelido" 2026-06-30 36000 [--ret 5,2]
+ *   node orihuela/tools/cli.js point remove "Apelido" 2026-06-30
  *   node orihuela/tools/cli.js validate
  *
  * Opção global: --file caminho/para/data.json (padrão: orihuela/data.json ao lado deste script).
@@ -193,6 +194,16 @@ switch (cmd) {
     break;
   }
   case 'point': {
+    if (args[1] === 'remove') {
+      const c = getClient(d, args[2]);
+      const date = args[3]; if (!C.isISODate(date)) fail('data deve ser AAAA-MM-DD');
+      const before = c.history.length;
+      c.history = c.history.filter(h => h.date !== date);
+      if (c.history.length === before) fail(c.name + ' não tem ponto em ' + C.fmtDate(date));
+      C.touch(d); saveData(d);
+      console.log(c.name + ': ponto de ' + C.fmtDate(date) + ' removido.');
+      break;
+    }
     const c = getClient(d, args[1]);
     const date = args[2]; if (!C.isISODate(date)) fail('data deve ser AAAA-MM-DD');
     const total = needNum(args[3], 'patrimônio');
