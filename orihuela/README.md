@@ -4,6 +4,16 @@ App de acompanhamento das carteiras dos clientes (todos na XP). Funciona como PW
 `https://rdleonel.github.io/orihuela/`, pode ser instalado na tela inicial do celular
 e abre off-line com a última versão dos dados que foi sincronizada.
 
+## Navegação
+
+Pensada para uso com uma mão no iPhone: **nada clicável fica no topo da tela**. As
+cinco telas ficam numa barra de abas fixa no rodapé (Início, Cotações, Clientes,
+Desempenho, Ajustes), e a ação principal de cada tela fica numa barra logo acima
+dela ("Atualizar todas as cotações", "+ Novo cliente", "Nova operação"). As ações
+secundárias da carteira estão no botão ••• ao lado. Para sair da carteira de um
+cliente, toque na aba Clientes ou arraste a partir da borda esquerda. Quando o
+teclado abre, as abas saem de cena e a barra de ação encosta no teclado.
+
 ## O que o app mostra
 
 - **Cotações**: todas as ações que aparecem em pelo menos uma carteira, com a última

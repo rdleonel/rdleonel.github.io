@@ -68,17 +68,102 @@
   }
   function go(hash) { location.hash = hash; }
   window.addEventListener('hashchange', render);
-  $('#btn-back').addEventListener('click', () => {
-    const r = route();
-    if (r.name === 'client') go('#/clients'); else go('#/');
-  });
-  $('#btn-gear').addEventListener('click', () => go('#/settings'));
 
-  function setHeader(title, hasBack) {
+  function setHeader(title, sub) {
     $('#title').textContent = title;
-    $('#header').classList.toggle('has-back', !!hasBack);
-    $('#btn-gear').classList.toggle('dirty', !!state.dirty);
+    $('#subtitle').textContent = sub || '';
   }
+
+  // ---------- navegação inferior (tudo ao alcance do polegar) ----------
+  // O iPhone torna o topo da tela difícil de alcançar, então nada clicável mora lá:
+  // abas fixas no rodapé, ações da tela logo acima delas e gesto de arrastar para voltar.
+  const TABS = [
+    { key: 'home', label: 'Início', hash: '#/', icon: 'home' },
+    { key: 'quotes', label: 'Cotações', hash: '#/quotes', icon: 'chart' },
+    { key: 'clients', label: 'Clientes', hash: '#/clients', icon: 'people' },
+    { key: 'performance', label: 'Desempenho', hash: '#/performance', icon: 'bars' },
+    { key: 'settings', label: 'Ajustes', hash: '#/settings', icon: 'sliders' }
+  ];
+  const ICONS = {
+    home: ['M3 10.7 12 3.6l9 7.1', 'M5.4 9.6V20.4h13.2V9.6', 'M9.7 20.4v-5.3h4.6v5.3'],
+    chart: ['M3 16.8 8.6 11l3.4 3 6.4-7.4', 'M14.6 6.1h4.4v4.4'],
+    people: ['M9.2 11.4a3.3 3.3 0 1 0 0-6.6 3.3 3.3 0 0 0 0 6.6Z', 'M2.8 19.8c0-3.2 2.9-4.9 6.4-4.9s6.4 1.7 6.4 4.9', 'M16.6 5.3a3.2 3.2 0 0 1 0 6.2', 'M17.8 15.2c2.1.5 3.4 2 3.4 4.6'],
+    bars: ['M3 20.4h18', 'M6.4 20.4v-6.2', 'M12 20.4V6.6', 'M17.6 20.4v-9.3'],
+    sliders: ['M3.4 7.2h9.2', 'M17.4 7.2h3.2', 'M3.4 16.8h3.2', 'M11.4 16.8h9.2', 'M15 4.6v5.2', 'M9 14.2v5.2']
+  };
+  function tabIcon(name) {
+    return svgEl.apply(null, [ 'svg', { viewBox: '0 0 24 24', 'aria-hidden': 'true' } ]
+      .concat(ICONS[name].map(d => svgEl('path', { d }))));
+  }
+  // A carteira de um cliente é filha da aba Clientes; tocar nela volta para a lista.
+  function activeTab(routeName) { return routeName === 'client' ? 'clients' : routeName; }
+  function renderTabbar(routeName) {
+    const bar = $('#tabbar');
+    bar.innerHTML = '';
+    const active = activeTab(routeName);
+    TABS.forEach(t => {
+      bar.appendChild(h('button', {
+        class: t.key === active ? 'on' : '', 'aria-label': t.label,
+        'aria-current': t.key === active ? 'page' : null,
+        onClick: () => { if (location.hash === t.hash || (t.key === 'home' && !location.hash)) window.scrollTo(0, 0); go(t.hash); }
+      }, tabIcon(t.icon), h('span', { text: t.label }),
+        t.key === 'settings' && state.dirty ? h('i', { class: 'dot' }) : null));
+    });
+  }
+  // Barra de ação da tela, fixa logo acima das abas. Sem conteúdo, some.
+  function setActionBar(content) {
+    const ab = $('#actionbar');
+    ab.innerHTML = '';
+    if (!content) {
+      ab.classList.add('hidden');
+      document.documentElement.style.setProperty('--actionbar-h', '0px');
+      return;
+    }
+    append(ab, content);
+    ab.classList.remove('hidden');
+    const measure = () => document.documentElement.style.setProperty('--actionbar-h', ab.offsetHeight + 'px');
+    measure();
+    requestAnimationFrame(measure);
+  }
+  function actionRow() {
+    return h('div', { class: 'row' }, Array.prototype.slice.call(arguments));
+  }
+
+  // No iOS o teclado cobre elementos fixos: acompanha a janela visível para que a
+  // barra de ação (Salvar, Cancelar) fique sempre logo acima do teclado.
+  (function trackKeyboard() {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const sync = () => {
+      const overlap = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+      document.documentElement.style.setProperty('--kb', overlap + 'px');
+      document.body.classList.toggle('kb-open', overlap > 120);
+    };
+    vv.addEventListener('resize', sync);
+    vv.addEventListener('scroll', sync);
+    sync();
+  })();
+
+  // Voltar: arrastar da borda esquerda, como nos apps nativos.
+  function goBack() {
+    const r = route();
+    if (r.name === 'client') go('#/clients');
+    else if (r.name !== 'home') go('#/');
+  }
+  let swipeX = null, swipeY = null;
+  document.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) { swipeX = null; return; }
+    const t = e.touches[0];
+    swipeX = t.clientX <= 30 ? t.clientX : null;
+    swipeY = t.clientY;
+  }, { passive: true });
+  document.addEventListener('touchend', e => {
+    if (swipeX == null) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - swipeX, dy = Math.abs(t.clientY - swipeY);
+    swipeX = null;
+    if (dx > 70 && dy < 60) goBack();
+  }, { passive: true });
 
   // ---------- mutações ----------
   // Toda alteração local passa por aqui: marca como pendente, salva e (se configurado) envia ao GitHub.
@@ -94,26 +179,31 @@
   }
 
   // ---------- render ----------
+  let lastRouteKey = null;
   function render() {
-    if (!state.data) { setHeader('Orihuela Consulting', false); renderLoading(); return; }
     const r = route();
+    renderTabbar(r.name);
+    if (!state.data) { setHeader('Orihuela Consulting'); setActionBar(null); renderLoading(); return; }
     const view = $('#view');
     view.innerHTML = '';
+    setActionBar(null);
     const banner = renderBanner();
     if (banner) view.appendChild(banner);
     switch (r.name) {
-      case 'quotes': setHeader('Cotações', true); viewQuotes(view); break;
-      case 'clients': setHeader('Clientes', true); viewClients(view); break;
+      case 'quotes': setHeader('Cotações'); viewQuotes(view); break;
+      case 'clients': setHeader('Clientes', state.data.clients.length + (state.data.clients.length === 1 ? ' carteira' : ' carteiras')); viewClients(view); break;
       case 'client': {
         const c = state.data.clients.find(x => x.id === r.id);
         if (!c) { go('#/clients'); return; }
-        setHeader(c.name, true); viewClient(view, c); break;
+        setHeader(c.name, 'carteira'); viewClient(view, c); break;
       }
-      case 'performance': setHeader('Desempenho', true); viewPerformance(view); break;
-      case 'settings': setHeader('Configurações', true); viewSettings(view); break;
-      default: setHeader('Orihuela Consulting', false); viewHome(view);
+      case 'performance': setHeader('Desempenho'); viewPerformance(view); break;
+      case 'settings': setHeader('Ajustes'); viewSettings(view); break;
+      default: setHeader('Orihuela Consulting', 'carteiras · XP'); viewHome(view);
     }
-    window.scrollTo(0, 0);
+    // Só volta ao topo quando a tela muda; um redesenho após editar mantém a rolagem.
+    const key = r.name + '/' + (r.id || '');
+    if (key !== lastRouteKey) { window.scrollTo(0, 0); lastRouteKey = key; }
   }
   function renderLoading() {
     const view = $('#view');
@@ -153,15 +243,7 @@
     const lastQuote = Object.keys(d.quotes).map(k => d.quotes[k].at).sort().pop();
     const missing = C.missingQuotes(d);
 
-    view.appendChild(h('div', { class: 'brand' },
-      h('div', { class: 'name' }, 'Orihuela ', h('span', { text: 'Consulting' })),
-      h('div', { class: 'sub', text: 'Gestão de carteiras · XP' })));
-
-    view.appendChild(h('div', { class: 'nav-grid' },
-      navCard('📈', 'Cotações', ts.length + (ts.length === 1 ? ' ação' : ' ações') + (lastQuote ? ' · ' + C.fmtDate(lastQuote) : ''), '#/quotes'),
-      navCard('👥', 'Clientes', d.clients.length + (d.clients.length === 1 ? ' carteira' : ' carteiras'), '#/clients'),
-      navCard('🏁', 'Desempenho', 'Todos lado a lado', '#/performance')));
-
+    // Leitura em cima, toque embaixo: no iPhone o polegar alcança bem só a metade inferior.
     view.appendChild(h('div', { class: 'card' },
       h('div', { class: 'hero' },
         h('div', { class: 'label', text: 'Patrimônio sob gestão' }),
@@ -175,6 +257,11 @@
       h('div', { class: 'btn-row' }, h('button', { class: 'btn sm', text: 'Informar cotações', onClick: () => go('#/quotes') }))));
 
     view.appendChild(syncCard());
+
+    view.appendChild(h('div', { class: 'nav-grid' },
+      navCard('📈', 'Cotações', ts.length + (ts.length === 1 ? ' ação' : ' ações') + (lastQuote ? ' · ' + C.fmtDate(lastQuote) : ''), '#/quotes'),
+      navCard('👥', 'Clientes', d.clients.length + (d.clients.length === 1 ? ' carteira' : ' carteiras'), '#/clients'),
+      navCard('🏁', 'Desempenho', 'Todos lado a lado', '#/performance')));
   }
   function navCard(icon, title, desc, hash) {
     return h('button', { class: 'nav-card', onClick: () => go(hash) },
@@ -205,8 +292,7 @@
       return;
     }
     if (!quotesEditing) {
-      view.appendChild(h('div', { class: 'btn-row' },
-        h('button', { class: 'btn primary', text: 'Atualizar todas as cotações', onClick: () => { quotesEditing = true; render(); } })));
+      setActionBar(actionRow(h('button', { class: 'btn primary grow', text: 'Atualizar todas as cotações', onClick: () => { quotesEditing = true; render(); } })));
       const list = h('div', { class: 'card tight' });
       ts.forEach(t => {
         list.appendChild(h('button', { class: 'quote-row', style: 'width:100%;text-align:left', onClick: () => editSingleQuote(t.ticker) },
@@ -234,9 +320,8 @@
     const dateInp = h('input', { type: 'date', value: C.localDateISO() });
     const snapChk = h('input', { type: 'checkbox', checked: true });
     const err = h('div', { class: 'form-error' });
-    view.appendChild(h('div', { class: 'sticky-bar' },
-      h('div', { class: 'field inline', style: 'margin-bottom:8px' }, snapChk, h('label', { text: 'Registrar ponto no histórico de cada cliente' })),
-      h('div', { class: 'row', style: 'margin-bottom:8px' }, h('label', { class: 'small dim', text: 'Data do ponto' }), dateInp),
+    setActionBar([
+      h('div', { class: 'row' }, h('div', { class: 'field inline' }, snapChk, h('label', { text: 'Registrar ponto em' })), dateInp),
       err,
       h('div', { class: 'row' },
         h('button', { class: 'btn', style: 'flex:1', text: 'Cancelar', onClick: () => { quotesEditing = false; render(); } }),
@@ -258,7 +343,8 @@
           quotesEditing = false;
           toast(Object.keys(map).length + ' cotações salvas' + (snapChk.checked ? ' e ponto registrado.' : '.'));
           render();
-        } }))));
+        } }))
+    ]);
   }
   function editSingleQuote(ticker) {
     const q = state.data.quotes[ticker];
@@ -281,8 +367,7 @@
   // ---------- CLIENTES ----------
   function viewClients(view) {
     const d = state.data;
-    view.appendChild(h('div', { class: 'btn-row' },
-      h('button', { class: 'btn primary', text: '+ Novo cliente', onClick: () => addClientDialog() })));
+    setActionBar(actionRow(h('button', { class: 'btn primary grow', text: '+ Novo cliente', onClick: () => addClientDialog() })));
     if (!d.clients.length) {
       view.appendChild(h('div', { class: 'card' }, h('div', { class: 'empty', text: 'Nenhum cliente ainda. Toque em "Novo cliente".' })));
       return;
@@ -357,10 +442,9 @@
         stat('Carteira no último bônus', r.bonusBase ? C.fmtBRL(r.bonusBase.value) : '—', r.bonusBase && r.bonusBase.date ? 'em ' + C.fmtDate(r.bonusBase.date) : 'toque em Editar', '', 'big'),
         stat('vs. último bônus', r.vsBonus == null ? '—' : C.fmtPct(r.vsBonus), r.bonusBase ? C.fmtSignedBRL(r.total - r.bonusBase.value) : '', signCls(r.vsBonus), 'big'))));
 
-    view.appendChild(h('div', { class: 'btn-row' },
-      h('button', { class: 'btn primary', text: 'Nova operação', onClick: () => txDialog(c) }),
-      h('button', { class: 'btn', text: '+ Ação', onClick: () => positionDialog(c, null) }),
-      h('button', { class: 'btn', text: 'Editar', onClick: () => editClientDialog(c) })));
+    setActionBar(actionRow(
+      h('button', { class: 'btn primary grow', text: 'Nova operação', onClick: () => txDialog(c) }),
+      h('button', { class: 'btn', style: 'width:56px;flex:none', text: '•••', 'aria-label': 'Mais ações', onClick: () => clientMenu(c) })));
 
     // tabela de posições
     const tbl = h('div', { class: 'card tight' });
@@ -423,6 +507,21 @@
       txCard.appendChild(list);
     }
     view.appendChild(txCard);
+  }
+  // Ações secundárias da carteira, numa folha que sobe do rodapé.
+  function clientMenu(c) {
+    const item = (icon, label, sub, onClick) => h('button', { onClick: () => { closeModal(); onClick(); } },
+      h('span', { class: 'ic', text: icon }),
+      h('span', {}, label, sub ? h('span', { class: 'sub', text: sub }) : null));
+    openModal(c.name, [
+      h('div', { class: 'sheet-menu' },
+        item('＋', 'Adicionar ação', 'cotas e preço médio, sem mexer no caixa', () => positionDialog(c, null)),
+        item('✎', 'Editar cliente', 'nome, caixa, capital e base do bônus', () => editClientDialog(c)),
+        item('◉', 'Registrar ponto agora', 'novo ponto no gráfico com a data de hoje', () => { mutate(data => C.snapshotClient(data, c)); toast('Ponto de hoje registrado.'); }),
+        item('▤', 'Ponto manual', 'patrimônio de uma data passada', () => manualPointDialog(c)),
+        item('‹', 'Voltar para os clientes', '', () => go('#/clients'))),
+      h('div', { class: 'actions' }, h('button', { class: 'btn', style: 'flex:1', text: 'Fechar', onClick: closeModal }))
+    ]);
   }
   function stat(label, value, sub, cls, extra) {
     return h('div', { class: 'stat ' + (extra || '') },

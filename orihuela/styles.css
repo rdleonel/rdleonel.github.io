@@ -6,6 +6,9 @@
   --green:#3ddc84; --red:#ff6b6b; --blue:#3987e5; --aqua:#2bb383;
   --radius:10px; --radius-sm:6px;
   --safe-b:env(safe-area-inset-bottom,0px);
+  --safe-t:env(safe-area-inset-top,0px);
+  --tabbar-h:60px;      /* altura da barra de abas, sem a safe area */
+  --actionbar-h:0px;    /* medido em tempo de execução quando há barra de ação */
   color-scheme:dark;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -30,18 +33,53 @@ a{color:var(--accent)}
 .small{font-size:12px}
 .hidden{display:none!important}
 
-/* ---------- header ---------- */
+/* ---------- header (apenas informativo: nada clicável no topo) ---------- */
 header{
-  display:flex;align-items:center;gap:8px;padding:12px 12px;
+  display:flex;align-items:baseline;gap:10px;padding:12px 16px;
   border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:20;
 }
-header .back{width:38px;height:38px;border-radius:var(--radius-sm);display:none;align-items:center;justify-content:center;font-size:24px;color:var(--text-2);border:1px solid var(--border)}
-header.has-back .back{display:flex}
-header h1{flex:1;font-size:18px;font-weight:700;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-header .gear{width:38px;height:38px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;color:var(--text-2);border:1px solid var(--border);font-size:18px}
-header .gear.dirty::after{content:"";position:absolute;width:8px;height:8px;border-radius:50%;background:var(--accent);transform:translate(12px,-12px)}
+header h1{font-size:19px;font-weight:700;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+header .hdr-sub{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-main{flex:1;padding:16px 16px calc(32px + var(--safe-b))}
+main{flex:1;padding:16px 16px calc(24px + var(--tabbar-h) + var(--actionbar-h) + var(--safe-b))}
+
+/* ---------- barra de abas (zona do polegar) ---------- */
+.tabbar{
+  position:fixed;bottom:var(--kb,0px);left:50%;transform:translateX(-50%);
+  width:100%;max-width:600px;z-index:30;
+  display:flex;align-items:stretch;
+  background:rgba(14,17,23,.94);backdrop-filter:blur(12px);
+  border-top:1px solid var(--border);
+  padding-bottom:var(--safe-b);
+}
+.tabbar button{
+  flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  height:var(--tabbar-h);color:var(--muted);font-size:10px;font-weight:600;letter-spacing:.01em;
+  position:relative;
+}
+.tabbar button svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.tabbar button span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.tabbar button.on{color:var(--accent)}
+.tabbar button:active{background:var(--surface-2)}
+.tabbar button .dot{position:absolute;top:8px;right:50%;margin-right:-16px;width:7px;height:7px;border-radius:50%;background:var(--accent)}
+
+/* ---------- barra de ação (acima das abas) ---------- */
+.actionbar{
+  position:fixed;left:50%;transform:translateX(-50%);
+  bottom:calc(var(--kb,0px) + var(--tabbar-h) + var(--safe-b));
+  width:100%;max-width:600px;z-index:29;
+  background:var(--bg);border-top:1px solid var(--border);
+  padding:10px 16px;
+}
+.actionbar .row{display:flex;gap:8px;align-items:center}
+.actionbar .row + .row{margin-top:8px}
+.actionbar .btn{min-height:48px;font-size:15px}
+.actionbar .grow{flex:1}
+.actionbar input[type=date]{width:auto;flex:1;padding:10px}
+.actionbar .field.inline{margin:0}
+/* Teclado aberto no iPhone: as abas saem de cena e a barra de ação encosta no teclado. */
+body.kb-open .tabbar{transform:translate(-50%,130%)}
+body.kb-open .actionbar{bottom:var(--kb,0px)}
 
 /* ---------- blocos ---------- */
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px}
@@ -71,14 +109,14 @@ main{flex:1;padding:16px 16px calc(32px + var(--safe-b))}
 /* ---------- botões ---------- */
 .btn{
   display:inline-flex;align-items:center;justify-content:center;gap:6px;
-  padding:10px 14px;border-radius:var(--radius-sm);border:1px solid var(--border-2);
+  padding:10px 14px;min-height:44px;border-radius:var(--radius-sm);border:1px solid var(--border-2);
   background:var(--surface-2);font-weight:600;font-size:14px;line-height:1;white-space:nowrap;
 }
 .btn:active{transform:translateY(1px)}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:#1a1300}
 .btn.danger{background:transparent;border-color:#5a2c2c;color:var(--red)}
 .btn.ghost{background:transparent}
-.btn.sm{padding:7px 10px;font-size:13px}
+.btn.sm{padding:8px 10px;min-height:38px;font-size:13px}
 .btn.block{width:100%}
 .btn[disabled]{opacity:.5;pointer-events:none}
 .btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
@@ -167,12 +205,6 @@ table.tbl{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeri
 .quote-row .price .v{font-weight:700;font-size:16px;font-variant-numeric:tabular-nums}
 .quote-row .price .d{font-size:11px;color:var(--muted)}
 .quote-row input{width:120px;margin-left:auto;text-align:right;padding:8px 10px}
-.sticky-bar{
-  position:sticky;bottom:0;background:var(--bg);border-top:1px solid var(--border);
-  padding:10px 0 calc(10px + var(--safe-b));margin:0 -16px;padding-left:16px;padding-right:16px;z-index:5;
-}
-.sticky-bar .row{display:flex;gap:8px;align-items:center}
-.sticky-bar input[type=date]{width:auto;flex:1;padding:8px 10px}
 
 /* ---------- formulários ---------- */
 .field{margin-bottom:12px}
@@ -200,13 +232,22 @@ select{appearance:none;-webkit-appearance:none}
 .sheet .actions .btn{flex:1}
 .sheet .danger-zone{margin-top:16px;padding-top:12px;border-top:1px solid var(--border)}
 .sheet p{color:var(--text-2);font-size:14px;margin-bottom:12px}
+.sheet-menu{display:flex;flex-direction:column;gap:2px;margin-bottom:8px}
+.sheet-menu button{
+  display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+  padding:14px 12px;border-radius:var(--radius-sm);background:var(--surface-2);
+  border:1px solid var(--border);font-size:15px;font-weight:600;min-height:52px;
+}
+.sheet-menu button:active{background:var(--surface-3)}
+.sheet-menu button .ic{width:28px;text-align:center;font-size:17px;flex:none}
+.sheet-menu button .sub{display:block;font-size:12px;font-weight:400;color:var(--text-2);margin-top:2px}
 .kv{display:grid;grid-template-columns:1fr auto;gap:6px 12px;font-size:14px;margin-bottom:12px}
 .kv div:nth-child(odd){color:var(--text-2)}
 .kv div:nth-child(even){text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
 
 /* ---------- toast e banner ---------- */
 .toast{
-  position:fixed;left:50%;bottom:calc(24px + var(--safe-b));transform:translateX(-50%);
+  position:fixed;left:50%;bottom:calc(var(--tabbar-h) + var(--actionbar-h) + var(--safe-b) + 16px);transform:translateX(-50%);
   background:#2a3140;color:var(--text);padding:10px 16px;border-radius:999px;font-size:14px;
   z-index:60;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:90vw;text-align:center;
   animation:up .18s ease-out;pointer-events:none;
