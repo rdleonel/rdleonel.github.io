@@ -204,7 +204,16 @@ table.tbl{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeri
 .quote-row .price{margin-left:auto;text-align:right;flex:none}
 .quote-row .price .v{font-weight:700;font-size:16px;font-variant-numeric:tabular-nums}
 .quote-row .price .d{font-size:11px;color:var(--muted)}
-.quote-row input{width:120px;margin-left:auto;text-align:right;padding:8px 10px}
+.quote-row input{width:120px;margin-left:auto;text-align:right;padding:10px;min-height:44px}
+.quote-row.filled input{border-color:var(--aqua)}
+
+/* print da corretora fixo no topo enquanto a lista de preços rola */
+.shot{position:sticky;top:0;z-index:15;background:var(--bg);margin:-16px -16px 12px;padding:0 0 6px;border-bottom:1px solid var(--border)}
+.shot-img{max-height:34vh;overflow:auto;-webkit-overflow-scrolling:touch;background:#000}
+.shot.grande .shot-img{max-height:62vh}
+.shot-img img{display:block;width:100%;height:auto}
+.shot.fechado .shot-img{display:none}
+.shot-bar{display:flex;gap:4px;padding:4px 10px 0;justify-content:flex-end}
 
 /* ---------- formulários ---------- */
 .field{margin-bottom:12px}
@@ -312,3 +321,4 @@ textarea.mono{min-height:120px}
   .nav-card{flex-direction:column;align-items:flex-start;gap:10px}
   .nav-card .chev{display:none}
 }
+.ic24{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}

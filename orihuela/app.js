@@ -3,8 +3,10 @@
   'use strict';
   const C = window.OrihuelaCore;
   const APP_VERSION = '1.0.0';
-  const LS = { state: 'orihuela.state', pin: 'orihuela.pin', gh: 'orihuela.gh', ui: 'orihuela.ui' };
+  const LS = { state: 'orihuela.state', pin: 'orihuela.pin', gh: 'orihuela.gh', ui: 'orihuela.ui', qp: 'orihuela.quotes' };
   const DEFAULT_GH = { owner: 'rdleonel', repo: 'rdleonel.github.io', branch: 'main', path: 'orihuela/data.json', token: '' };
+  // Serviço de cotações. {TICKERS} e {TOKEN} são trocados na hora da busca.
+  const DEFAULT_QP = { url: 'https://brapi.dev/api/quote/{TICKERS}?token={TOKEN}', token: '', sep: ',', auth: '' };
   const LOCK_AFTER_MS = 2 * 60 * 1000;
 
   // ---------- armazenamento ----------
@@ -15,6 +17,7 @@
   let state = load(LS.state) || { data: null, baseUpdatedAt: null, dirty: false, sha: null, lastSync: null };
   if (state.data) state.data = C.normalize(state.data);
   let gh = Object.assign({}, DEFAULT_GH, load(LS.gh) || {});
+  let qp = Object.assign({}, DEFAULT_QP, load(LS.qp) || {});
   let ui = Object.assign({ chart: { total: true, ret: true }, perfSort: 'name' }, load(LS.ui) || {});
   let pendingRemote = null;   // versão do servidor que conflita com edições locais
   let syncStatus = 'idle';    // idle | syncing | offline | error | ok
@@ -258,6 +261,15 @@
 
     view.appendChild(syncCard());
 
+    // Atualizar cotações é o que mais se faz: fica sempre no rodapé, ao alcance do polegar.
+    setActionBar(actionRow(
+      h('button', { class: 'btn primary grow', text: 'Atualizar cotações', onClick: () => startQuotesUpdate() }),
+      h('button', { class: 'btn', style: 'width:56px;flex:none', 'aria-label': 'Atualizar usando um print', onClick: () => { quotesEditing = true; go('#/quotes'); pickShot(); } },
+        svgEl('svg', { viewBox: '0 0 24 24', class: 'ic24' },
+          svgEl('rect', { x: 3, y: 5, width: 18, height: 14, rx: 2 }),
+          svgEl('circle', { cx: 8.5, cy: 10, r: 1.6 }),
+          svgEl('path', { d: 'M4 17l5-4.5 3.5 3L16 12l4 4' })))));
+
     view.appendChild(h('div', { class: 'nav-grid' },
       navCard('📈', 'Cotações', ts.length + (ts.length === 1 ? ' ação' : ' ações') + (lastQuote ? ' · ' + C.fmtDate(lastQuote) : ''), '#/quotes'),
       navCard('👥', 'Clientes', d.clients.length + (d.clients.length === 1 ? ' carteira' : ' carteiras'), '#/clients'),
@@ -283,7 +295,44 @@
   }
 
   // ---------- COTAÇÕES ----------
+  // Três caminhos para atualizar tudo: buscar de um serviço de cotações, conferir
+  // olhando um print dentro do próprio app, ou digitar.
   let quotesEditing = false;
+  let shot = null;          // { url, name } print anexado à conferência
+  let shotOpen = 'aberto';   // aberto | grande | fechado
+  let fetchInfo = null;     // { state, msg, got: {ticker: preço}, at }
+
+  function quoteInputs(ts, map) {
+    const inputs = {};
+    const order = [];
+    const list = h('div', { class: 'card tight' });
+    ts.forEach(t => {
+      const got = map && map[t.ticker];
+      const inp = h('input', {
+        type: 'text', inputmode: 'decimal', placeholder: '0,00', enterkeyhint: 'next',
+        value: got != null ? C.fmtNum(got) : (t.price == null ? '' : C.fmtNum(t.price))
+      });
+      inp.addEventListener('focus', () => inp.select());
+      // Enter pula para o próximo papel: dá para digitar a lista inteira sem tirar a mão do teclado.
+      inp.addEventListener('keydown', e => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        const i = order.indexOf(inp);
+        const next = order[i + 1];
+        if (next) { next.focus(); next.scrollIntoView({ block: 'center' }); } else inp.blur();
+      });
+      order.push(inp);
+      inputs[t.ticker] = inp;
+      const before = t.price == null ? 'sem cotação' : 'antes ' + C.fmtNum(t.price);
+      const delta = got != null && t.price ? (got / t.price - 1) : null;
+      list.appendChild(h('div', { class: 'quote-row' + (got != null ? ' filled' : '') },
+        h('div', { class: 'tk' }, t.ticker,
+          h('small', {}, before, delta != null ? h('span', { class: signCls(delta), text: '  ' + C.fmtPct(delta) }) : null)),
+        inp));
+    });
+    return { inputs, list };
+  }
+
   function viewQuotes(view) {
     const d = state.data;
     const ts = C.tickerSummary(d);
@@ -292,7 +341,7 @@
       return;
     }
     if (!quotesEditing) {
-      setActionBar(actionRow(h('button', { class: 'btn primary grow', text: 'Atualizar todas as cotações', onClick: () => { quotesEditing = true; render(); } })));
+      setActionBar(actionRow(h('button', { class: 'btn primary grow', text: 'Atualizar cotações', onClick: () => startQuotesUpdate() })));
       const list = h('div', { class: 'card tight' });
       ts.forEach(t => {
         list.appendChild(h('button', { class: 'quote-row', style: 'width:100%;text-align:left', onClick: () => editSingleQuote(t.ticker) },
@@ -302,21 +351,37 @@
             h('div', { class: 'd', text: t.at ? C.fmtDateTime(t.at) : 'toque para informar' }))));
       });
       view.appendChild(list);
-      view.appendChild(h('p', { class: 'small muted', text: 'Lista de todas as ações presentes em pelo menos uma carteira. Toque em uma linha para corrigir uma cotação isolada; use o botão acima para a atualização completa, que registra um ponto novo no gráfico de cada cliente.' }));
+      view.appendChild(h('p', { class: 'small muted', text: 'Todas as ações presentes em pelo menos uma carteira. Toque em uma linha para corrigir uma cotação isolada.' }));
       return;
     }
-    // modo de edição em lote
-    const inputs = {};
-    const list = h('div', { class: 'card tight' });
-    ts.forEach(t => {
-      const inp = h('input', { type: 'text', inputmode: 'decimal', placeholder: '0,00', value: t.price == null ? '' : C.fmtNum(t.price) });
-      inp.addEventListener('focus', () => inp.select());
-      inputs[t.ticker] = inp;
-      list.appendChild(h('div', { class: 'quote-row' },
-        h('div', { class: 'tk' }, t.ticker, h('small', { text: t.price == null ? 'sem cotação' : 'antes ' + C.fmtNum(t.price) })),
-        inp));
-    });
+
+    // ----- modo conferência -----
+    const { inputs, list } = quoteInputs(ts, fetchInfo && fetchInfo.got);
+
+    // painel do print, grudado no topo enquanto a lista rola
+    if (shot) {
+      const img = h('img', { src: shot.url, alt: 'print das cotações' });
+      const panel = h('div', { class: 'shot ' + shotOpen }, // aberto | grande | fechado
+        h('div', { class: 'shot-img' }, img),
+        h('div', { class: 'shot-bar' },
+          h('button', { class: 'btn sm ghost', text: shotOpen === 'fechado' ? 'Mostrar' : shotOpen === 'grande' ? 'Menor' : 'Maior', onClick: () => { shotOpen = shotOpen === 'aberto' ? 'grande' : shotOpen === 'grande' ? 'fechado' : 'aberto'; render(); } }),
+          h('button', { class: 'btn sm ghost', text: 'Trocar', onClick: () => pickShot() }),
+          h('button', { class: 'btn sm ghost', text: 'Remover', onClick: () => { clearShot(); render(); } })));
+      view.appendChild(panel);
+    }
+
+    // como preencher
+    const tools = h('div', { class: 'btn-row' },
+      h('button', { class: 'btn', text: 'Buscar cotações', onClick: e => runFetch(e.currentTarget) }),
+      h('button', { class: 'btn', text: shot ? 'Trocar print' : 'Usar um print', onClick: () => pickShot() }));
+    view.appendChild(tools);
+    if (fetchInfo) {
+      const cls = fetchInfo.state === 'ok' ? 'banner info' : fetchInfo.state === 'partial' ? 'banner' : 'banner';
+      view.appendChild(h('div', { class: cls }, h('p', { text: fetchInfo.msg })));
+    }
+
     view.appendChild(list);
+
     const dateInp = h('input', { type: 'date', value: C.localDateISO() });
     const snapChk = h('input', { type: 'checkbox', checked: true });
     const err = h('div', { class: 'form-error' });
@@ -324,7 +389,7 @@
       h('div', { class: 'row' }, h('div', { class: 'field inline' }, snapChk, h('label', { text: 'Registrar ponto em' })), dateInp),
       err,
       h('div', { class: 'row' },
-        h('button', { class: 'btn', style: 'flex:1', text: 'Cancelar', onClick: () => { quotesEditing = false; render(); } }),
+        h('button', { class: 'btn', style: 'flex:1', text: 'Cancelar', onClick: () => { endQuotesUpdate(); render(); } }),
         h('button', { class: 'btn primary', style: 'flex:2', text: 'Salvar cotações', onClick: () => {
           const map = {}; const bad = [];
           Object.keys(inputs).forEach(t => {
@@ -340,11 +405,114 @@
             C.setQuotes(data, map, C.isISODate(date) && date !== C.localDateISO() ? new Date(date + 'T12:00:00').toISOString() : new Date().toISOString());
             if (snapChk.checked) C.snapshotAll(data, date);
           });
-          quotesEditing = false;
+          endQuotesUpdate();
           toast(Object.keys(map).length + ' cotações salvas' + (snapChk.checked ? ' e ponto registrado.' : '.'));
           render();
         } }))
     ]);
+  }
+
+  function startQuotesUpdate() {
+    quotesEditing = true; fetchInfo = null;
+    go('#/quotes');
+    render();
+    // Com serviço pronto, já busca: o caminho de um toque só. Sem token configurado,
+    // espera o usuário pedir, para não abrir a tela com um erro.
+    if (quotesReady() && navigator.onLine) runFetch(null);
+  }
+  function endQuotesUpdate() { quotesEditing = false; fetchInfo = null; clearShot(); }
+  function clearShot() { if (shot) { try { URL.revokeObjectURL(shot.url); } catch (e) { } } shot = null; shotOpen = 'aberto'; }
+
+  // Print da corretora: fica visível no topo enquanto você confere os valores.
+  function pickShot() {
+    const inp = h('input', { type: 'file', accept: 'image/*', style: 'display:none' });
+    document.body.appendChild(inp);
+    inp.addEventListener('change', () => {
+      const f = inp.files && inp.files[0];
+      inp.remove();
+      if (!f) return;
+      clearShot();
+      shot = { url: URL.createObjectURL(f), name: f.name || 'print' };
+      shotOpen = 'aberto';
+      if (!quotesEditing) { quotesEditing = true; }
+      render();
+    });
+    inp.click();
+  }
+
+  function quotesReady() { return !!qp.url && (!!qp.token || qp.url.indexOf('{TOKEN}') < 0); }
+  async function runFetch(btn) {
+    if (!quotesReady()) {
+      fetchInfo = { state: 'err', msg: 'Serviço de cotações sem token. Abra Ajustes, informe o token e volte aqui. Enquanto isso, use um print ou digite os preços.' };
+      render(); return;
+    }
+    const wanted = C.tickers(state.data);
+    if (btn) { btn.disabled = true; btn.textContent = 'Buscando…'; }
+    fetchInfo = { state: 'loading', msg: 'Buscando cotações…' };
+    try {
+      const got = await fetchQuotes(wanted);
+      const found = Object.keys(got);
+      const missing = wanted.filter(t => got[t] == null);
+      if (!found.length) fetchInfo = { state: 'err', msg: 'O serviço respondeu, mas nenhuma cotação foi reconhecida. Confira o endereço em Ajustes ou preencha pelo print.' };
+      else fetchInfo = {
+        state: missing.length ? 'partial' : 'ok', got,
+        msg: found.length + ' de ' + wanted.length + ' cotações preenchidas.' + (missing.length ? ' Faltam: ' + missing.join(', ') + '. Preencha pelo print ou à mão.' : ' Confira e salve.')
+      };
+    } catch (e) {
+      fetchInfo = { state: 'err', msg: 'Não foi possível buscar: ' + e.message };
+    }
+    render();
+  }
+
+  // Busca no serviço configurado e extrai os preços de forma tolerante ao formato.
+  async function fetchQuotes(tickers) {
+    const url = qp.url.replace('{TICKERS}', tickers.join(qp.sep || ',')).replace('{TOKEN}', encodeURIComponent(qp.token || ''));
+    let res;
+    try {
+      res = await fetch(url, { cache: 'no-store', headers: qp.auth ? { Authorization: qp.auth } : undefined });
+    } catch (e) {
+      throw new Error('o serviço não respondeu ou recusou a conexão do app (CORS).');
+    }
+    if (!res.ok) throw new Error('o serviço respondeu ' + res.status + (res.status === 401 || res.status === 403 ? ' (token inválido?)' : ''));
+    let json;
+    try { json = await res.json(); } catch (e) { throw new Error('a resposta não é JSON.'); }
+    return extractQuotes(json, tickers);
+  }
+  // Procura, em qualquer formato de resposta, objetos que tenham um código e um preço.
+  const SYM_KEYS = ['symbol', 'ticker', 'code', 'stock', 'papel', 'sigla'];
+  const PRICE_KEYS = ['regularmarketprice', 'price', 'lastprice', 'last', 'close', 'closingprice', 'preco', 'preço', 'valor', 'cotacao', 'cotação', 'c', 'pu'];
+  function extractQuotes(json, wanted) {
+    const want = new Set(wanted.map(C.normTicker));
+    const out = {};
+    const seen = new Set();
+    (function walk(node, keyHint) {
+      if (!node || typeof node !== 'object' || seen.has(node)) return;
+      seen.add(node);
+      if (Array.isArray(node)) { node.forEach(n => walk(n, keyHint)); return; }
+      const keys = Object.keys(node);
+      // objeto com código + preço
+      let sym = null, price = null;
+      keys.forEach(k => {
+        const lk = k.toLowerCase();
+        if (sym == null && SYM_KEYS.indexOf(lk) >= 0 && typeof node[k] === 'string') sym = C.normTicker(node[k]);
+        if (price == null && PRICE_KEYS.indexOf(lk) >= 0) {
+          const v = typeof node[k] === 'number' ? node[k] : C.parseNum(node[k]);
+          if (Number.isFinite(v) && v > 0) price = v;
+        }
+      });
+      // formato { "PETR4": 38.12 } ou { "PETR4": { price: ... } }
+      keys.forEach(k => {
+        const t = C.normTicker(k);
+        if (want.has(t) && out[t] == null) {
+          const v = node[k];
+          if (typeof v === 'number' && v > 0) out[t] = v;
+          else if (typeof v === 'string') { const n = C.parseNum(v); if (Number.isFinite(n) && n > 0) out[t] = n; }
+        }
+      });
+      if (sym && price != null && want.has(sym) && out[sym] == null) out[sym] = price;
+      keys.forEach(k => walk(node[k], k));
+    })(json, null);
+    return out;
   }
   function editSingleQuote(ticker) {
     const q = state.data.quotes[ticker];
@@ -710,6 +878,36 @@
     view.appendChild(h('div', { class: 'card' }, h('h2', { text: 'Segurança' }),
       h('div', { class: 'btn-row', style: 'margin:0' },
         h('button', { class: 'btn', text: 'Alterar PIN', onClick: () => showLock('change') }))));
+
+    // Serviço de cotações
+    const q = {};
+    const qCard = h('div', { class: 'card' }, h('h2', { text: 'Serviço de cotações' }),
+      h('p', { class: 'small dim', style: 'margin-bottom:10px', text: 'Com um serviço configurado, o botão "Atualizar cotações" na tela inicial busca todos os preços de uma vez. O padrão é a brapi.dev, que cobre ações, BDRs, ETFs e fundos imobiliários da B3: crie uma conta gratuita lá e cole o token abaixo. {TICKERS} e {TOKEN} são substituídos na hora da busca.' }));
+    q.url = h('input', { type: 'text', value: qp.url, autocapitalize: 'off', autocorrect: 'off', spellcheck: false });
+    qCard.appendChild(h('div', { class: 'field' }, h('label', { text: 'Endereço' }), q.url));
+    q.token = h('input', { type: 'password', value: qp.token, placeholder: 'token do serviço', autocapitalize: 'off', autocorrect: 'off', spellcheck: false });
+    qCard.appendChild(h('div', { class: 'field' }, h('label', { text: 'Token' }), q.token,
+      h('div', { class: 'hint', text: 'Fica apenas neste aparelho.' })));
+    const qMsg = h('div', { class: 'form-error' });
+    qCard.appendChild(qMsg);
+    qCard.appendChild(h('div', { class: 'btn-row', style: 'margin:0' },
+      h('button', { class: 'btn primary', text: 'Salvar', onClick: () => {
+        qp.url = q.url.value.trim(); qp.token = q.token.value.trim();
+        save(LS.qp, qp); toast('Serviço salvo.');
+      } }),
+      h('button', { class: 'btn', text: 'Testar', onClick: async e => {
+        qp.url = q.url.value.trim(); qp.token = q.token.value.trim();
+        const tk = C.tickers(state.data).slice(0, 3);
+        if (!tk.length) { qMsg.textContent = 'Cadastre ao menos uma ação antes de testar.'; return; }
+        qMsg.textContent = 'Testando com ' + tk.join(', ') + '…';
+        try {
+          const got = await fetchQuotes(tk);
+          const n = Object.keys(got).length;
+          qMsg.textContent = n ? '' : 'Respondeu, mas nenhum preço foi reconhecido.';
+          if (n) toast(n + ' de ' + tk.length + ' reconhecidos: ' + Object.keys(got).map(t => t + ' ' + C.fmtNum(got[t])).join(', '));
+        } catch (err) { qMsg.textContent = 'Falha: ' + err.message; }
+      } })));
+    view.appendChild(qCard);
 
     // GitHub
     const f = {};

@@ -14,6 +14,31 @@ secundárias da carteira estão no botão ••• ao lado. Para sair da cartei
 cliente, toque na aba Clientes ou arraste a partir da borda esquerda. Quando o
 teclado abre, as abas saem de cena e a barra de ação encosta no teclado.
 
+## Atualizar as cotações
+
+O botão **Atualizar cotações** fica fixo no rodapé da tela inicial. Ele abre a tela de
+conferência, onde os preços podem chegar de três formas:
+
+1. **Busca automática.** Com um serviço configurado em Ajustes, o app já busca tudo ao
+   abrir a tela: cada campo vem preenchido, com borda verde e a variação em relação ao
+   preço anterior ao lado (uma variação absurda denuncia leitura errada na hora). O
+   padrão é a brapi.dev, que cobre ações, BDRs, ETFs e fundos imobiliários da B3 e
+   precisa de um token gratuito. O endereço é um template com `{TICKERS}` e `{TOKEN}`,
+   então dá para trocar de serviço sem mexer no código; a leitura da resposta é
+   tolerante e reconhece os formatos mais comuns de JSON.
+2. **Print da corretora.** O botão ao lado (ícone de imagem) abre a câmera ou a galeria.
+   O print fica fixo no topo da tela, com três tamanhos, enquanto a lista de preços rola
+   embaixo: dá para conferir sem trocar de aplicativo. A tecla Enter pula para o próximo
+   papel.
+3. **À mão**, digitando direto nos campos.
+
+Em qualquer caso nada é gravado antes de você tocar em **Salvar cotações**, e o mesmo
+toque registra um ponto no gráfico de todos os clientes na data escolhida.
+
+O app não lê o print sozinho: isso exigiria um serviço de visão e uma chave de API
+guardada no aparelho. Para extração automática a partir de imagens, o caminho continua
+sendo mandar o print numa sessão do Claude neste repositório.
+
 ## O que o app mostra
 
 - **Cotações**: todas as ações que aparecem em pelo menos uma carteira, com a última
