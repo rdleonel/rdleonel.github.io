@@ -22,11 +22,14 @@ Ao alterar `orihuela/index.html`, `app.js`, `styles.css` ou `core.js`, increment
 ## Estado atual e pendências (atualize ao fim de cada sessão)
 
 - Clientes: Felipe (5 ativos), RD (16 ativos, carteira do próprio usuário, conferida
-  contra o print de custódia de 11/09/2026) e FRAN (6 ativos, conferido contra o print
-  de 21/09/2026: saldo e rentabilidade batem em todas as linhas e a soma fecha com
-  R$ 105.414,90 em ações).
-- Cotações de fechamento de 11/09/2026 para 27 papéis, com MUTC34, GOGL34, TSLA34,
-  INBR32, M1TA34 e BOVA11 atualizados em 21/09/2026 pelo print do FRAN.
+  contra o print de custódia de 11/09/2026), FRAN (6 ativos) e GABRIEL (5 ativos), os
+  dois últimos conferidos linha a linha contra prints de 21/09/2026.
+- Cotações de fechamento de 11/09/2026 para 27 papéis, atualizadas em 21/09/2026 pelos
+  prints do FRAN (MUTC34, GOGL34, TSLA34, INBR32, M1TA34, BOVA11) e depois do GABRIEL
+  (INBR32, MUTC34, TSLA34, MSFT34, IVVB11). Os dois prints são do mesmo dia mas de
+  momentos diferentes: o do GABRIEL traz preços mais baixos em INBR32, MUTC34 e TSLA34,
+  e prevaleceu por ser o mais recente recebido. Confirmar com o usuário se estiver
+  errado.
 - Pendências de dados: saldo em caixa e base do último bônus (valor e data) dos três
   clientes; custo real de MAXR11, RNGO11 e XPCM11 no RD (a XP mostra preço médio
   "Indefinido", então estão com preço médio igual à cotação e lucro zero); BPAC11 e
@@ -35,6 +38,11 @@ Ao alterar `orihuela/index.html`, `app.js`, `styles.css` ou `core.js`, increment
 - O preço médio do BOVA11 vendido do FRAN (R$ 174,74) veio da nota de negociação de
   04/08/2026. As demais operações da mesma nota (venda de 62 GOGL34 e compra de 27
   MUTC34) já estavam refletidas nos preços médios do print e não devem ser lançadas.
+- No print de Aluguel do GABRIEL, as quatro linhas de IVVB11 (115+169+218+219 = 721
+  cotas) somam R$ 322.416,78, mas o cabeçalho da seção mostra R$ 319.763,50: faltam
+  R$ 2.653,28, provavelmente uma linha cortada no print. As quatro foram consolidadas
+  numa posição vendida de 721 cotas, e o preço médio (que a tela de Aluguel não traz)
+  ficou igual à cotação, com lucro zero, até vir a nota de negociação.
 - Serviço de cotações (brapi.dev) configurável em Ajustes; o usuário estava obtendo o
   token para testar. Falta confirmar a cobertura de INBR32, MAXR11, RNGO11 e XPCM11.
 - Os demais clientes (mais de 30) entram aos poucos por prints.
