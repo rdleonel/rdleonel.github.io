@@ -2,9 +2,11 @@
 (function () {
   'use strict';
   const C = window.OrihuelaCore;
-  const APP_VERSION = '1.0.0';
-  const LS = { state: 'orihuela.state', pin: 'orihuela.pin', gh: 'orihuela.gh', ui: 'orihuela.ui' };
+  const APP_VERSION = '1.3.0';
+  const LS = { state: 'orihuela.state', pin: 'orihuela.pin', gh: 'orihuela.gh', ui: 'orihuela.ui', qp: 'orihuela.quotes' };
   const DEFAULT_GH = { owner: 'rdleonel', repo: 'rdleonel.github.io', branch: 'main', path: 'orihuela/data.json', token: '' };
+  // Serviço de cotações. {TICKERS} e {TOKEN} são trocados na hora da busca.
+  const DEFAULT_QP = { url: 'https://brapi.dev/api/quote/{TICKERS}?token={TOKEN}', token: '', sep: ',', auth: '', batch: 20 };
   const LOCK_AFTER_MS = 2 * 60 * 1000;
 
   // ---------- armazenamento ----------
@@ -15,6 +17,7 @@
   let state = load(LS.state) || { data: null, baseUpdatedAt: null, dirty: false, sha: null, lastSync: null };
   if (state.data) state.data = C.normalize(state.data);
   let gh = Object.assign({}, DEFAULT_GH, load(LS.gh) || {});
+  let qp = Object.assign({}, DEFAULT_QP, load(LS.qp) || {});
   let ui = Object.assign({ chart: { total: true, ret: true }, perfSort: 'name' }, load(LS.ui) || {});
   let pendingRemote = null;   // versão do servidor que conflita com edições locais
   let syncStatus = 'idle';    // idle | syncing | offline | error | ok
@@ -68,17 +71,102 @@
   }
   function go(hash) { location.hash = hash; }
   window.addEventListener('hashchange', render);
-  $('#btn-back').addEventListener('click', () => {
-    const r = route();
-    if (r.name === 'client') go('#/clients'); else go('#/');
-  });
-  $('#btn-gear').addEventListener('click', () => go('#/settings'));
 
-  function setHeader(title, hasBack) {
+  function setHeader(title, sub) {
     $('#title').textContent = title;
-    $('#header').classList.toggle('has-back', !!hasBack);
-    $('#btn-gear').classList.toggle('dirty', !!state.dirty);
+    $('#subtitle').textContent = sub || '';
   }
+
+  // ---------- navegação inferior (tudo ao alcance do polegar) ----------
+  // O iPhone torna o topo da tela difícil de alcançar, então nada clicável mora lá:
+  // abas fixas no rodapé, ações da tela logo acima delas e gesto de arrastar para voltar.
+  const TABS = [
+    { key: 'home', label: 'Início', hash: '#/', icon: 'home' },
+    { key: 'quotes', label: 'Cotações', hash: '#/quotes', icon: 'chart' },
+    { key: 'clients', label: 'Clientes', hash: '#/clients', icon: 'people' },
+    { key: 'performance', label: 'Desempenho', hash: '#/performance', icon: 'bars' },
+    { key: 'settings', label: 'Ajustes', hash: '#/settings', icon: 'sliders' }
+  ];
+  const ICONS = {
+    home: ['M3 10.7 12 3.6l9 7.1', 'M5.4 9.6V20.4h13.2V9.6', 'M9.7 20.4v-5.3h4.6v5.3'],
+    chart: ['M3 16.8 8.6 11l3.4 3 6.4-7.4', 'M14.6 6.1h4.4v4.4'],
+    people: ['M9.2 11.4a3.3 3.3 0 1 0 0-6.6 3.3 3.3 0 0 0 0 6.6Z', 'M2.8 19.8c0-3.2 2.9-4.9 6.4-4.9s6.4 1.7 6.4 4.9', 'M16.6 5.3a3.2 3.2 0 0 1 0 6.2', 'M17.8 15.2c2.1.5 3.4 2 3.4 4.6'],
+    bars: ['M3 20.4h18', 'M6.4 20.4v-6.2', 'M12 20.4V6.6', 'M17.6 20.4v-9.3'],
+    sliders: ['M3.4 7.2h9.2', 'M17.4 7.2h3.2', 'M3.4 16.8h3.2', 'M11.4 16.8h9.2', 'M15 4.6v5.2', 'M9 14.2v5.2']
+  };
+  function tabIcon(name) {
+    return svgEl.apply(null, [ 'svg', { viewBox: '0 0 24 24', 'aria-hidden': 'true' } ]
+      .concat(ICONS[name].map(d => svgEl('path', { d }))));
+  }
+  // A carteira de um cliente é filha da aba Clientes; tocar nela volta para a lista.
+  function activeTab(routeName) { return routeName === 'client' ? 'clients' : routeName; }
+  function renderTabbar(routeName) {
+    const bar = $('#tabbar');
+    bar.innerHTML = '';
+    const active = activeTab(routeName);
+    TABS.forEach(t => {
+      bar.appendChild(h('button', {
+        class: t.key === active ? 'on' : '', 'aria-label': t.label,
+        'aria-current': t.key === active ? 'page' : null,
+        onClick: () => { if (location.hash === t.hash || (t.key === 'home' && !location.hash)) window.scrollTo(0, 0); go(t.hash); }
+      }, tabIcon(t.icon), h('span', { text: t.label }),
+        t.key === 'settings' && state.dirty ? h('i', { class: 'dot' }) : null));
+    });
+  }
+  // Barra de ação da tela, fixa logo acima das abas. Sem conteúdo, some.
+  function setActionBar(content) {
+    const ab = $('#actionbar');
+    ab.innerHTML = '';
+    if (!content) {
+      ab.classList.add('hidden');
+      document.documentElement.style.setProperty('--actionbar-h', '0px');
+      return;
+    }
+    append(ab, content);
+    ab.classList.remove('hidden');
+    const measure = () => document.documentElement.style.setProperty('--actionbar-h', ab.offsetHeight + 'px');
+    measure();
+    requestAnimationFrame(measure);
+  }
+  function actionRow() {
+    return h('div', { class: 'row' }, Array.prototype.slice.call(arguments));
+  }
+
+  // No iOS o teclado cobre elementos fixos: acompanha a janela visível para que a
+  // barra de ação (Salvar, Cancelar) fique sempre logo acima do teclado.
+  (function trackKeyboard() {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const sync = () => {
+      const overlap = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+      document.documentElement.style.setProperty('--kb', overlap + 'px');
+      document.body.classList.toggle('kb-open', overlap > 120);
+    };
+    vv.addEventListener('resize', sync);
+    vv.addEventListener('scroll', sync);
+    sync();
+  })();
+
+  // Voltar: arrastar da borda esquerda, como nos apps nativos.
+  function goBack() {
+    const r = route();
+    if (r.name === 'client') go('#/clients');
+    else if (r.name !== 'home') go('#/');
+  }
+  let swipeX = null, swipeY = null;
+  document.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) { swipeX = null; return; }
+    const t = e.touches[0];
+    swipeX = t.clientX <= 30 ? t.clientX : null;
+    swipeY = t.clientY;
+  }, { passive: true });
+  document.addEventListener('touchend', e => {
+    if (swipeX == null) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - swipeX, dy = Math.abs(t.clientY - swipeY);
+    swipeX = null;
+    if (dx > 70 && dy < 60) goBack();
+  }, { passive: true });
 
   // ---------- mutações ----------
   // Toda alteração local passa por aqui: marca como pendente, salva e (se configurado) envia ao GitHub.
@@ -94,26 +182,31 @@
   }
 
   // ---------- render ----------
+  let lastRouteKey = null;
   function render() {
-    if (!state.data) { setHeader('Orihuela Consulting', false); renderLoading(); return; }
     const r = route();
+    renderTabbar(r.name);
+    if (!state.data) { setHeader('Orihuela Consulting'); setActionBar(null); renderLoading(); return; }
     const view = $('#view');
     view.innerHTML = '';
+    setActionBar(null);
     const banner = renderBanner();
     if (banner) view.appendChild(banner);
     switch (r.name) {
-      case 'quotes': setHeader('Cotações', true); viewQuotes(view); break;
-      case 'clients': setHeader('Clientes', true); viewClients(view); break;
+      case 'quotes': setHeader('Cotações'); viewQuotes(view); break;
+      case 'clients': setHeader('Clientes', state.data.clients.length + (state.data.clients.length === 1 ? ' carteira' : ' carteiras')); viewClients(view); break;
       case 'client': {
         const c = state.data.clients.find(x => x.id === r.id);
         if (!c) { go('#/clients'); return; }
-        setHeader(c.name, true); viewClient(view, c); break;
+        setHeader(c.name, 'carteira'); viewClient(view, c); break;
       }
-      case 'performance': setHeader('Desempenho', true); viewPerformance(view); break;
-      case 'settings': setHeader('Configurações', true); viewSettings(view); break;
-      default: setHeader('Orihuela Consulting', false); viewHome(view);
+      case 'performance': setHeader('Desempenho'); viewPerformance(view); break;
+      case 'settings': setHeader('Ajustes'); viewSettings(view); break;
+      default: setHeader('Orihuela Consulting', 'carteiras · XP'); viewHome(view);
     }
-    window.scrollTo(0, 0);
+    // Só volta ao topo quando a tela muda; um redesenho após editar mantém a rolagem.
+    const key = r.name + '/' + (r.id || '');
+    if (key !== lastRouteKey) { window.scrollTo(0, 0); lastRouteKey = key; }
   }
   function renderLoading() {
     const view = $('#view');
@@ -127,6 +220,13 @@
         h('button', { class: 'btn', text: 'Começar vazio', onClick: () => { adopt(C.emptyData(), null); state.dirty = true; persist(); render(); } }))));
   }
   function renderBanner() {
+    if (updateReady) {
+      return h('div', { class: 'banner info' },
+        h('p', { text: 'Há uma versão nova do aplicativo. Atualizar não apaga nada: as carteiras ficam guardadas.' }),
+        h('div', { class: 'btn-row' },
+          h('button', { class: 'btn sm', text: 'Agora não', onClick: () => { updateReady = false; render(); } }),
+          h('button', { class: 'btn sm primary', text: 'Atualizar agora', onClick: applyUpdate })));
+    }
     if (pendingRemote) {
       return h('div', { class: 'banner' },
         h('p', { text: 'Há dados mais novos no servidor (' + C.fmtDateTime(pendingRemote.data.updatedAt) + '), mas você tem edições locais ainda não enviadas. O que fazer?' }),
@@ -153,15 +253,7 @@
     const lastQuote = Object.keys(d.quotes).map(k => d.quotes[k].at).sort().pop();
     const missing = C.missingQuotes(d);
 
-    view.appendChild(h('div', { class: 'brand' },
-      h('div', { class: 'name' }, 'Orihuela ', h('span', { text: 'Consulting' })),
-      h('div', { class: 'sub', text: 'Gestão de carteiras · XP' })));
-
-    view.appendChild(h('div', { class: 'nav-grid' },
-      navCard('📈', 'Cotações', ts.length + (ts.length === 1 ? ' ação' : ' ações') + (lastQuote ? ' · ' + C.fmtDate(lastQuote) : ''), '#/quotes'),
-      navCard('👥', 'Clientes', d.clients.length + (d.clients.length === 1 ? ' carteira' : ' carteiras'), '#/clients'),
-      navCard('🏁', 'Desempenho', 'Todos lado a lado', '#/performance')));
-
+    // Leitura em cima, toque embaixo: no iPhone o polegar alcança bem só a metade inferior.
     view.appendChild(h('div', { class: 'card' },
       h('div', { class: 'hero' },
         h('div', { class: 'label', text: 'Patrimônio sob gestão' }),
@@ -175,6 +267,20 @@
       h('div', { class: 'btn-row' }, h('button', { class: 'btn sm', text: 'Informar cotações', onClick: () => go('#/quotes') }))));
 
     view.appendChild(syncCard());
+
+    // Atualizar cotações é o que mais se faz: fica sempre no rodapé, ao alcance do polegar.
+    setActionBar(actionRow(
+      h('button', { class: 'btn primary grow', text: 'Atualizar cotações', onClick: () => startQuotesUpdate() }),
+      h('button', { class: 'btn', style: 'width:56px;flex:none', 'aria-label': 'Atualizar usando um print', onClick: () => { quotesEditing = true; go('#/quotes'); pickShot(); } },
+        svgEl('svg', { viewBox: '0 0 24 24', class: 'ic24' },
+          svgEl('rect', { x: 3, y: 5, width: 18, height: 14, rx: 2 }),
+          svgEl('circle', { cx: 8.5, cy: 10, r: 1.6 }),
+          svgEl('path', { d: 'M4 17l5-4.5 3.5 3L16 12l4 4' })))));
+
+    view.appendChild(h('div', { class: 'nav-grid' },
+      navCard('📈', 'Cotações', ts.length + (ts.length === 1 ? ' ação' : ' ações') + (lastQuote ? ' · ' + C.fmtDate(lastQuote) : ''), '#/quotes'),
+      navCard('👥', 'Clientes', d.clients.length + (d.clients.length === 1 ? ' carteira' : ' carteiras'), '#/clients'),
+      navCard('🏁', 'Desempenho', 'Todos lado a lado', '#/performance')));
   }
   function navCard(icon, title, desc, hash) {
     return h('button', { class: 'nav-card', onClick: () => go(hash) },
@@ -196,7 +302,44 @@
   }
 
   // ---------- COTAÇÕES ----------
+  // Três caminhos para atualizar tudo: buscar de um serviço de cotações, conferir
+  // olhando um print dentro do próprio app, ou digitar.
   let quotesEditing = false;
+  let shot = null;          // { url, name } print anexado à conferência
+  let shotOpen = 'aberto';   // aberto | grande | fechado
+  let fetchInfo = null;     // { state, msg, got: {ticker: preço}, at }
+
+  function quoteInputs(ts, map) {
+    const inputs = {};
+    const order = [];
+    const list = h('div', { class: 'card tight' });
+    ts.forEach(t => {
+      const got = map && map[t.ticker];
+      const inp = h('input', {
+        type: 'text', inputmode: 'decimal', placeholder: '0,00', enterkeyhint: 'next',
+        value: got != null ? C.fmtNum(got) : (t.price == null ? '' : C.fmtNum(t.price))
+      });
+      inp.addEventListener('focus', () => inp.select());
+      // Enter pula para o próximo papel: dá para digitar a lista inteira sem tirar a mão do teclado.
+      inp.addEventListener('keydown', e => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        const i = order.indexOf(inp);
+        const next = order[i + 1];
+        if (next) { next.focus(); next.scrollIntoView({ block: 'center' }); } else inp.blur();
+      });
+      order.push(inp);
+      inputs[t.ticker] = inp;
+      const before = t.price == null ? 'sem cotação' : 'antes ' + C.fmtNum(t.price);
+      const delta = got != null && t.price ? (got / t.price - 1) : null;
+      list.appendChild(h('div', { class: 'quote-row' + (got != null ? ' filled' : '') },
+        h('div', { class: 'tk' }, t.ticker,
+          h('small', {}, before, delta != null ? h('span', { class: signCls(delta), text: '  ' + C.fmtPct(delta) }) : null)),
+        inp));
+    });
+    return { inputs, list };
+  }
+
   function viewQuotes(view) {
     const d = state.data;
     const ts = C.tickerSummary(d);
@@ -205,8 +348,7 @@
       return;
     }
     if (!quotesEditing) {
-      view.appendChild(h('div', { class: 'btn-row' },
-        h('button', { class: 'btn primary', text: 'Atualizar todas as cotações', onClick: () => { quotesEditing = true; render(); } })));
+      setActionBar(actionRow(h('button', { class: 'btn primary grow', text: 'Atualizar cotações', onClick: () => startQuotesUpdate() })));
       const list = h('div', { class: 'card tight' });
       ts.forEach(t => {
         list.appendChild(h('button', { class: 'quote-row', style: 'width:100%;text-align:left', onClick: () => editSingleQuote(t.ticker) },
@@ -216,30 +358,45 @@
             h('div', { class: 'd', text: t.at ? C.fmtDateTime(t.at) : 'toque para informar' }))));
       });
       view.appendChild(list);
-      view.appendChild(h('p', { class: 'small muted', text: 'Lista de todas as ações presentes em pelo menos uma carteira. Toque em uma linha para corrigir uma cotação isolada; use o botão acima para a atualização completa, que registra um ponto novo no gráfico de cada cliente.' }));
+      view.appendChild(h('p', { class: 'small muted', text: 'Todas as ações presentes em pelo menos uma carteira. Toque em uma linha para corrigir uma cotação isolada.' }));
       return;
     }
-    // modo de edição em lote
-    const inputs = {};
-    const list = h('div', { class: 'card tight' });
-    ts.forEach(t => {
-      const inp = h('input', { type: 'text', inputmode: 'decimal', placeholder: '0,00', value: t.price == null ? '' : C.fmtNum(t.price) });
-      inp.addEventListener('focus', () => inp.select());
-      inputs[t.ticker] = inp;
-      list.appendChild(h('div', { class: 'quote-row' },
-        h('div', { class: 'tk' }, t.ticker, h('small', { text: t.price == null ? 'sem cotação' : 'antes ' + C.fmtNum(t.price) })),
-        inp));
-    });
+
+    // ----- modo conferência -----
+    const { inputs, list } = quoteInputs(ts, fetchInfo && fetchInfo.got);
+
+    // painel do print, grudado no topo enquanto a lista rola
+    if (shot) {
+      const img = h('img', { src: shot.url, alt: 'print das cotações' });
+      const panel = h('div', { class: 'shot ' + shotOpen }, // aberto | grande | fechado
+        h('div', { class: 'shot-img' }, img),
+        h('div', { class: 'shot-bar' },
+          h('button', { class: 'btn sm ghost', text: shotOpen === 'fechado' ? 'Mostrar' : shotOpen === 'grande' ? 'Menor' : 'Maior', onClick: () => { shotOpen = shotOpen === 'aberto' ? 'grande' : shotOpen === 'grande' ? 'fechado' : 'aberto'; render(); } }),
+          h('button', { class: 'btn sm ghost', text: 'Trocar', onClick: () => pickShot() }),
+          h('button', { class: 'btn sm ghost', text: 'Remover', onClick: () => { clearShot(); render(); } })));
+      view.appendChild(panel);
+    }
+
+    // como preencher
+    const tools = h('div', { class: 'btn-row' },
+      h('button', { class: 'btn', text: 'Buscar cotações', onClick: e => runFetch(e.currentTarget) }),
+      h('button', { class: 'btn', text: shot ? 'Trocar print' : 'Usar um print', onClick: () => pickShot() }));
+    view.appendChild(tools);
+    if (fetchInfo) {
+      const cls = fetchInfo.state === 'ok' ? 'banner info' : fetchInfo.state === 'partial' ? 'banner' : 'banner';
+      view.appendChild(h('div', { class: cls }, h('p', { text: fetchInfo.msg })));
+    }
+
     view.appendChild(list);
+
     const dateInp = h('input', { type: 'date', value: C.localDateISO() });
     const snapChk = h('input', { type: 'checkbox', checked: true });
     const err = h('div', { class: 'form-error' });
-    view.appendChild(h('div', { class: 'sticky-bar' },
-      h('div', { class: 'field inline', style: 'margin-bottom:8px' }, snapChk, h('label', { text: 'Registrar ponto no histórico de cada cliente' })),
-      h('div', { class: 'row', style: 'margin-bottom:8px' }, h('label', { class: 'small dim', text: 'Data do ponto' }), dateInp),
+    setActionBar([
+      h('div', { class: 'row' }, h('div', { class: 'field inline' }, snapChk, h('label', { text: 'Registrar ponto em' })), dateInp),
       err,
       h('div', { class: 'row' },
-        h('button', { class: 'btn', style: 'flex:1', text: 'Cancelar', onClick: () => { quotesEditing = false; render(); } }),
+        h('button', { class: 'btn', style: 'flex:1', text: 'Cancelar', onClick: () => { endQuotesUpdate(); render(); } }),
         h('button', { class: 'btn primary', style: 'flex:2', text: 'Salvar cotações', onClick: () => {
           const map = {}; const bad = [];
           Object.keys(inputs).forEach(t => {
@@ -255,10 +412,160 @@
             C.setQuotes(data, map, C.isISODate(date) && date !== C.localDateISO() ? new Date(date + 'T12:00:00').toISOString() : new Date().toISOString());
             if (snapChk.checked) C.snapshotAll(data, date);
           });
-          quotesEditing = false;
+          endQuotesUpdate();
           toast(Object.keys(map).length + ' cotações salvas' + (snapChk.checked ? ' e ponto registrado.' : '.'));
           render();
-        } }))));
+        } }))
+    ]);
+  }
+
+  function startQuotesUpdate() {
+    quotesEditing = true; fetchInfo = null;
+    go('#/quotes');
+    render();
+    // Com serviço pronto, já busca: o caminho de um toque só. Sem token configurado,
+    // espera o usuário pedir, para não abrir a tela com um erro.
+    if (quotesReady() && navigator.onLine) runFetch(null);
+  }
+  function endQuotesUpdate() { quotesEditing = false; fetchInfo = null; clearShot(); }
+  function clearShot() { if (shot) { try { URL.revokeObjectURL(shot.url); } catch (e) { } } shot = null; shotOpen = 'aberto'; }
+
+  // Print da corretora: fica visível no topo enquanto você confere os valores.
+  function pickShot() {
+    const inp = h('input', { type: 'file', accept: 'image/*', style: 'display:none' });
+    document.body.appendChild(inp);
+    inp.addEventListener('change', () => {
+      const f = inp.files && inp.files[0];
+      inp.remove();
+      if (!f) return;
+      clearShot();
+      shot = { url: URL.createObjectURL(f), name: f.name || 'print' };
+      shotOpen = 'aberto';
+      if (!quotesEditing) { quotesEditing = true; }
+      render();
+    });
+    inp.click();
+  }
+
+  function quotesReady() { return !!qp.url && (!!qp.token || qp.url.indexOf('{TOKEN}') < 0); }
+  async function runFetch(btn) {
+    if (!quotesReady()) {
+      fetchInfo = { state: 'err', msg: 'Serviço de cotações sem token. Abra Ajustes, informe o token e volte aqui. Enquanto isso, use um print ou digite os preços.' };
+      render(); return;
+    }
+    const wanted = C.tickers(state.data);
+    if (btn) { btn.disabled = true; btn.textContent = 'Buscando…'; }
+    fetchInfo = { state: 'loading', msg: 'Buscando cotações…' };
+    try {
+      const got = await fetchQuotes(wanted, (feitos, total) => {
+        fetchInfo = { state: 'loading', msg: 'Buscando cotações… ' + feitos + ' de ' + total };
+        const b = document.querySelector('.banner p');
+        if (b) b.textContent = fetchInfo.msg;
+      });
+      const found = Object.keys(got);
+      const missing = wanted.filter(t => got[t] == null);
+      fetchInfo = {
+        state: missing.length ? 'partial' : 'ok', got,
+        msg: found.length + ' de ' + wanted.length + ' cotações preenchidas.' + (missing.length ? ' Faltam: ' + missing.join(', ') + '. Preencha pelo print ou à mão.' : ' Confira e salve.')
+      };
+    } catch (e) {
+      fetchInfo = {
+        state: 'err',
+        msg: e.kind === 'empty'
+          ? 'O serviço respondeu, mas nenhum papel foi reconhecido. Confira o endereço e o token em Ajustes, ou preencha pelo print.'
+          : 'Não foi possível buscar: ' + e.message
+      };
+    }
+    render();
+  }
+
+  // Uma chamada ao serviço, com o erro classificado para quem chama decidir o que fazer.
+  async function fetchBatch(tickers) {
+    const url = qp.url.replace('{TICKERS}', tickers.join(qp.sep || ',')).replace('{TOKEN}', encodeURIComponent(qp.token || ''));
+    let res;
+    try {
+      res = await fetch(url, { cache: 'no-store', headers: qp.auth ? { Authorization: qp.auth } : undefined });
+    } catch (e) {
+      const err = new Error('o serviço não respondeu ou recusou a conexão do app (CORS).');
+      err.kind = 'net'; throw err;
+    }
+    if (!res.ok) {
+      const err = new Error('o serviço respondeu ' + res.status +
+        (res.status === 401 || res.status === 403 ? ' (token inválido ou plano sem acesso a esses papéis?)' :
+          res.status === 429 ? ' (limite de consultas atingido; tente de novo em alguns minutos)' : ''));
+      err.kind = (res.status === 401 || res.status === 403 || res.status === 429) ? 'auth' : 'http';
+      err.status = res.status; throw err;
+    }
+    let json;
+    try { json = await res.json(); } catch (e) { const err = new Error('a resposta não é JSON.'); err.kind = 'parse'; throw err; }
+    return extractQuotes(json, tickers);
+  }
+
+  // Busca tudo em lotes. Serviços gratuitos costumam limitar quantos papéis cabem por
+  // chamada, então o lote encolhe sozinho quando o servidor reclama, e o tamanho que
+  // funcionou fica guardado para as próximas vezes.
+  async function fetchQuotes(tickers, onProgress) {
+    const out = {};
+    let size = Math.max(1, Math.min(qp.batch || 20, tickers.length));
+    let rest = tickers.slice();
+    let firstCall = true;
+    while (rest.length) {
+      const batch = rest.slice(0, size);
+      let got = null, err = null;
+      try { got = await fetchBatch(batch); } catch (e) { err = e; }
+      if (err && (err.kind === 'net' || (err.kind === 'auth' && firstCall))) throw err; // não adianta insistir
+      firstCall = false;
+      const found = got ? Object.keys(got).length : 0;
+      if (!found && batch.length > 1) {          // lote grande demais: tenta menor
+        size = size > 5 ? 5 : 1;
+        if (qp.batch !== size) { qp.batch = size; save(LS.qp, qp); }
+        continue;
+      }
+      if (got) Object.assign(out, got);
+      rest = rest.slice(batch.length);           // um papel sozinho sem resposta é pulado
+      if (onProgress) onProgress(tickers.length - rest.length, tickers.length);
+    }
+    if (!Object.keys(out).length) {
+      const err = new Error('o serviço respondeu, mas nenhum papel foi reconhecido.');
+      err.kind = 'empty'; throw err;
+    }
+    return out;
+  }
+  // Procura, em qualquer formato de resposta, objetos que tenham um código e um preço.
+  const SYM_KEYS = ['symbol', 'ticker', 'code', 'stock', 'papel', 'sigla'];
+  const PRICE_KEYS = ['regularmarketprice', 'price', 'lastprice', 'last', 'close', 'closingprice', 'preco', 'preço', 'valor', 'cotacao', 'cotação', 'c', 'pu'];
+  function extractQuotes(json, wanted) {
+    const want = new Set(wanted.map(C.normTicker));
+    const out = {};
+    const seen = new Set();
+    (function walk(node, keyHint) {
+      if (!node || typeof node !== 'object' || seen.has(node)) return;
+      seen.add(node);
+      if (Array.isArray(node)) { node.forEach(n => walk(n, keyHint)); return; }
+      const keys = Object.keys(node);
+      // objeto com código + preço
+      let sym = null, price = null;
+      keys.forEach(k => {
+        const lk = k.toLowerCase();
+        if (sym == null && SYM_KEYS.indexOf(lk) >= 0 && typeof node[k] === 'string') sym = C.normTicker(node[k]);
+        if (price == null && PRICE_KEYS.indexOf(lk) >= 0) {
+          const v = typeof node[k] === 'number' ? node[k] : C.parseNum(node[k]);
+          if (Number.isFinite(v) && v > 0) price = v;
+        }
+      });
+      // formato { "PETR4": 38.12 } ou { "PETR4": { price: ... } }
+      keys.forEach(k => {
+        const t = C.normTicker(k);
+        if (want.has(t) && out[t] == null) {
+          const v = node[k];
+          if (typeof v === 'number' && v > 0) out[t] = v;
+          else if (typeof v === 'string') { const n = C.parseNum(v); if (Number.isFinite(n) && n > 0) out[t] = n; }
+        }
+      });
+      if (sym && price != null && want.has(sym) && out[sym] == null) out[sym] = price;
+      keys.forEach(k => walk(node[k], k));
+    })(json, null);
+    return out;
   }
   function editSingleQuote(ticker) {
     const q = state.data.quotes[ticker];
@@ -281,8 +588,7 @@
   // ---------- CLIENTES ----------
   function viewClients(view) {
     const d = state.data;
-    view.appendChild(h('div', { class: 'btn-row' },
-      h('button', { class: 'btn primary', text: '+ Novo cliente', onClick: () => addClientDialog() })));
+    setActionBar(actionRow(h('button', { class: 'btn primary grow', text: '+ Novo cliente', onClick: () => addClientDialog() })));
     if (!d.clients.length) {
       view.appendChild(h('div', { class: 'card' }, h('div', { class: 'empty', text: 'Nenhum cliente ainda. Toque em "Novo cliente".' })));
       return;
@@ -357,10 +663,9 @@
         stat('Carteira no último bônus', r.bonusBase ? C.fmtBRL(r.bonusBase.value) : '—', r.bonusBase && r.bonusBase.date ? 'em ' + C.fmtDate(r.bonusBase.date) : 'toque em Editar', '', 'big'),
         stat('vs. último bônus', r.vsBonus == null ? '—' : C.fmtPct(r.vsBonus), r.bonusBase ? C.fmtSignedBRL(r.total - r.bonusBase.value) : '', signCls(r.vsBonus), 'big'))));
 
-    view.appendChild(h('div', { class: 'btn-row' },
-      h('button', { class: 'btn primary', text: 'Nova operação', onClick: () => txDialog(c) }),
-      h('button', { class: 'btn', text: '+ Ação', onClick: () => positionDialog(c, null) }),
-      h('button', { class: 'btn', text: 'Editar', onClick: () => editClientDialog(c) })));
+    setActionBar(actionRow(
+      h('button', { class: 'btn primary grow', text: 'Nova operação', onClick: () => txDialog(c) }),
+      h('button', { class: 'btn', style: 'width:56px;flex:none', text: '•••', 'aria-label': 'Mais ações', onClick: () => clientMenu(c) })));
 
     // tabela de posições
     const tbl = h('div', { class: 'card tight' });
@@ -423,6 +728,21 @@
       txCard.appendChild(list);
     }
     view.appendChild(txCard);
+  }
+  // Ações secundárias da carteira, numa folha que sobe do rodapé.
+  function clientMenu(c) {
+    const item = (icon, label, sub, onClick) => h('button', { onClick: () => { closeModal(); onClick(); } },
+      h('span', { class: 'ic', text: icon }),
+      h('span', {}, label, sub ? h('span', { class: 'sub', text: sub }) : null));
+    openModal(c.name, [
+      h('div', { class: 'sheet-menu' },
+        item('＋', 'Adicionar ação', 'cotas e preço médio, sem mexer no caixa', () => positionDialog(c, null)),
+        item('✎', 'Editar cliente', 'nome, caixa, capital e base do bônus', () => editClientDialog(c)),
+        item('◉', 'Registrar ponto agora', 'novo ponto no gráfico com a data de hoje', () => { mutate(data => C.snapshotClient(data, c)); toast('Ponto de hoje registrado.'); }),
+        item('▤', 'Ponto manual', 'patrimônio de uma data passada', () => manualPointDialog(c)),
+        item('‹', 'Voltar para os clientes', '', () => go('#/clients'))),
+      h('div', { class: 'actions' }, h('button', { class: 'btn', style: 'flex:1', text: 'Fechar', onClick: closeModal }))
+    ]);
   }
   function stat(label, value, sub, cls, extra) {
     return h('div', { class: 'stat ' + (extra || '') },
@@ -612,6 +932,36 @@
       h('div', { class: 'btn-row', style: 'margin:0' },
         h('button', { class: 'btn', text: 'Alterar PIN', onClick: () => showLock('change') }))));
 
+    // Serviço de cotações
+    const q = {};
+    const qCard = h('div', { class: 'card' }, h('h2', { text: 'Serviço de cotações' }),
+      h('p', { class: 'small dim', style: 'margin-bottom:10px', text: 'Com um serviço configurado, o botão "Atualizar cotações" na tela inicial busca todos os preços de uma vez. O padrão é a brapi.dev, que cobre ações, BDRs, ETFs e fundos imobiliários da B3: crie uma conta gratuita lá e cole o token abaixo. {TICKERS} e {TOKEN} são substituídos na hora da busca.' }));
+    q.url = h('input', { type: 'text', value: qp.url, autocapitalize: 'off', autocorrect: 'off', spellcheck: false });
+    qCard.appendChild(h('div', { class: 'field' }, h('label', { text: 'Endereço' }), q.url));
+    q.token = h('input', { type: 'password', value: qp.token, placeholder: 'token do serviço', autocapitalize: 'off', autocorrect: 'off', spellcheck: false });
+    qCard.appendChild(h('div', { class: 'field' }, h('label', { text: 'Token' }), q.token,
+      h('div', { class: 'hint', text: 'Fica apenas neste aparelho.' })));
+    const qMsg = h('div', { class: 'form-error' });
+    qCard.appendChild(qMsg);
+    qCard.appendChild(h('div', { class: 'btn-row', style: 'margin:0' },
+      h('button', { class: 'btn primary', text: 'Salvar', onClick: () => {
+        qp.url = q.url.value.trim(); qp.token = q.token.value.trim();
+        save(LS.qp, qp); toast('Serviço salvo.');
+      } }),
+      h('button', { class: 'btn', text: 'Testar', onClick: async e => {
+        qp.url = q.url.value.trim(); qp.token = q.token.value.trim();
+        const tk = C.tickers(state.data).slice(0, 3);
+        if (!tk.length) { qMsg.textContent = 'Cadastre ao menos uma ação antes de testar.'; return; }
+        qMsg.textContent = 'Testando com ' + tk.join(', ') + '…';
+        try {
+          const got = await fetchQuotes(tk);
+          const n = Object.keys(got).length;
+          qMsg.textContent = n ? '' : 'Respondeu, mas nenhum preço foi reconhecido.';
+          if (n) toast(n + ' de ' + tk.length + ' reconhecidos: ' + Object.keys(got).map(t => t + ' ' + C.fmtNum(got[t])).join(', '));
+        } catch (err) { qMsg.textContent = 'Falha: ' + err.message; }
+      } })));
+    view.appendChild(qCard);
+
     // GitHub
     const f = {};
     const ghCard = h('div', { class: 'card' }, h('h2', { text: 'Sincronização com o GitHub' }),
@@ -666,9 +1016,17 @@
           }
         } }))));
 
+    view.appendChild(h('div', { class: 'card' }, h('h2', { text: 'Versão do aplicativo' }),
+      h('div', { class: 'status-line', style: 'flex-direction:column;gap:4px;margin-bottom:12px' },
+        h('span', {}, 'Orihuela Consulting · versão ', h('b', { text: APP_VERSION })),
+        h('span', { text: updateReady ? 'Versão nova pronta para instalar.' : 'Atualizar troca só o código; as carteiras continuam salvas.' })),
+      h('div', { class: 'btn-row', style: 'margin:0' },
+        updateReady
+          ? h('button', { class: 'btn primary', text: 'Instalar versão nova', onClick: applyUpdate })
+          : h('button', { class: 'btn', text: 'Procurar atualização', onClick: () => checkUpdate(true) }))));
+
     view.appendChild(h('div', { class: 'card' }, h('h2', { text: 'Sobre' }),
       h('div', { class: 'status-line', style: 'flex-direction:column;gap:4px' },
-        h('span', {}, 'Orihuela Consulting · app ', h('b', { text: APP_VERSION })),
         h('span', { text: 'Os dados ficam em data.json no repositório e em cópia local para uso off-line. O PIN bloqueia só a tela deste aparelho.' }))));
   }
   async function shareJSON() {
@@ -1099,12 +1457,51 @@
   }
 
   // ---------- início ----------
+  // ---------- atualização do app ----------
+  // Os dados moram no localStorage e no data.json do servidor, então recarregar para
+  // pegar uma versão nova nunca apaga carteira: só troca o código do app.
+  let swReg = null, updateReady = false, checking = false;
+  function setupUpdates() {
+    if (!('serviceWorker' in navigator)) return;
+    let hadController = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then(reg => {
+      swReg = reg;
+      if (reg.waiting && hadController) { updateReady = true; render(); }
+      reg.addEventListener('updatefound', () => {
+        const nw = reg.installing;
+        if (!nw) return;
+        nw.addEventListener('statechange', () => {
+          if (nw.state === 'installed' && navigator.serviceWorker.controller) { updateReady = true; render(); }
+        });
+      });
+    }).catch(() => { });
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (hadController) { updateReady = true; render(); }
+      hadController = true;
+    });
+    // procura versão nova ao voltar para o app e de tempos em tempos
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) checkUpdate(); });
+    setInterval(checkUpdate, 30 * 60 * 1000);
+  }
+  function checkUpdate(manual) {
+    if (!swReg || !navigator.onLine) { if (manual) toast('Sem conexão para procurar atualização.', true); return; }
+    if (checking) return;
+    checking = true;
+    swReg.update().then(() => {
+      setTimeout(() => {
+        checking = false;
+        if (manual && !updateReady) toast('Você já está na versão mais recente.');
+      }, 2500);
+    }).catch(() => { checking = false; if (manual) toast('Não foi possível procurar atualização.', true); });
+  }
+  function applyUpdate() {
+    // Edições locais ainda não enviadas ficam no localStorage e sobrevivem ao reload.
+    if (swReg && swReg.waiting) { try { swReg.waiting.postMessage({ type: 'SKIP_WAITING' }); } catch (e) { } }
+    setTimeout(() => location.reload(), 150);
+  }
+
   function init() {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js').catch(() => { });
-      let reloaded = false;
-      navigator.serviceWorker.addEventListener('controllerchange', () => { if (navigator.serviceWorker.controller && !reloaded && state.data) { reloaded = true; /* nova versão pronta; recarrega na próxima abertura */ } });
-    }
+    setupUpdates();
     if (!pinCfg.get()) showLock('setup'); else showLock('unlock');
     render();
     syncFromRemote({});

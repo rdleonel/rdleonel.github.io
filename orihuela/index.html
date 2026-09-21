@@ -7,9 +7,9 @@
 <meta name="description" content="Carteiras dos clientes: cotações, posições, track record e operações.">
 <meta name="theme-color" content="#0e1117">
 <link rel="manifest" href="manifest.json">
-<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=2">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png?v=2">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -18,11 +18,12 @@
 </head>
 <body>
 <header id="header">
-  <button class="back" id="btn-back" aria-label="Voltar">‹</button>
   <h1 id="title">Orihuela Consulting</h1>
-  <button class="gear" id="btn-gear" aria-label="Configurações">⚙</button>
+  <span id="subtitle" class="hdr-sub"></span>
 </header>
 <main id="view"></main>
+<div id="actionbar" class="actionbar hidden"></div>
+<nav id="tabbar" class="tabbar" aria-label="Navegação principal"></nav>
 <div id="modal-root"></div>
 <div id="toast-root"></div>
 <div id="lock-root"></div>
