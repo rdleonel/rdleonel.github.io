@@ -39,10 +39,13 @@ Ao alterar `orihuela/index.html`, `app.js`, `styles.css` ou `core.js`, increment
   04/08/2026. As demais operações da mesma nota (venda de 62 GOGL34 e compra de 27
   MUTC34) já estavam refletidas nos preços médios do print e não devem ser lançadas.
 - No print de Aluguel do GABRIEL, as quatro linhas de IVVB11 (115+169+218+219 = 721
-  cotas) somam R$ 322.416,78, mas o cabeçalho da seção mostra R$ 319.763,50: faltam
-  R$ 2.653,28, provavelmente uma linha cortada no print. As quatro foram consolidadas
-  numa posição vendida de 721 cotas, e o preço médio (que a tela de Aluguel não traz)
-  ficou igual à cotação, com lucro zero, até vir a nota de negociação.
+  cotas) somam R$ 322.416,78 e o cabeçalho da seção mostra R$ 319.763,50. Não falta
+  linha: o cabeçalho usa uma cotação anterior (319.763,50 ÷ 721 = R$ 443,50) enquanto as
+  linhas usam R$ 447,18. Vale checar essa divisão antes de supor print cortado.
+- O preço médio do IVVB11 vendido do GABRIEL (R$ 442,26) veio da nota de negociação: as
+  três vendas (57, 281 e 383) somam exatamente as 721 cotas, todas ao mesmo preço. As
+  outras operações da nota (vendas de BABA34 e GOGL34, que zeraram essas posições, e a
+  compra de 7.811 INBR32) já estão refletidas no print da carteira.
 - Serviço de cotações (brapi.dev) configurável em Ajustes; o usuário estava obtendo o
   token para testar. Falta confirmar a cobertura de INBR32, MAXR11, RNGO11 e XPCM11.
 - Os demais clientes (mais de 30) entram aos poucos por prints.

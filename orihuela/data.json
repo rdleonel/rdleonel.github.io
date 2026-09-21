@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-09-21T17:55:58.102Z",
+  "updatedAt": "2026-09-21T17:56:53.239Z",
   "quotes": {
     "INBR32": {
       "price": 27.77,
@@ -347,7 +347,7 @@
       "id": "c_mubjqigci5a3i",
       "name": "GABRIEL",
       "cash": 0,
-      "capital": 521458.4,
+      "capital": 525005.72,
       "bonusBase": null,
       "positions": [
         {
@@ -373,7 +373,7 @@
         {
           "ticker": "IVVB11",
           "qty": -721,
-          "avgPrice": 447.18
+          "avgPrice": 442.26
         }
       ],
       "transactions": [],
@@ -381,10 +381,10 @@
         {
           "date": "2026-09-21",
           "total": 485292.08,
-          "invested": 521458.4,
+          "invested": 525005.72,
           "cash": 0,
-          "capital": 521458.4,
-          "ret": -0.06935609820457411
+          "capital": 525005.72,
+          "ret": -0.07564420440981101
         }
       ]
     }
