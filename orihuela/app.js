@@ -2,11 +2,11 @@
 (function () {
   'use strict';
   const C = window.OrihuelaCore;
-  const APP_VERSION = '1.2.0';
+  const APP_VERSION = '1.3.0';
   const LS = { state: 'orihuela.state', pin: 'orihuela.pin', gh: 'orihuela.gh', ui: 'orihuela.ui', qp: 'orihuela.quotes' };
   const DEFAULT_GH = { owner: 'rdleonel', repo: 'rdleonel.github.io', branch: 'main', path: 'orihuela/data.json', token: '' };
   // Serviço de cotações. {TICKERS} e {TOKEN} são trocados na hora da busca.
-  const DEFAULT_QP = { url: 'https://brapi.dev/api/quote/{TICKERS}?token={TOKEN}', token: '', sep: ',', auth: '' };
+  const DEFAULT_QP = { url: 'https://brapi.dev/api/quote/{TICKERS}?token={TOKEN}', token: '', sep: ',', auth: '', batch: 20 };
   const LOCK_AFTER_MS = 2 * 60 * 1000;
 
   // ---------- armazenamento ----------
@@ -457,33 +457,79 @@
     if (btn) { btn.disabled = true; btn.textContent = 'Buscando…'; }
     fetchInfo = { state: 'loading', msg: 'Buscando cotações…' };
     try {
-      const got = await fetchQuotes(wanted);
+      const got = await fetchQuotes(wanted, (feitos, total) => {
+        fetchInfo = { state: 'loading', msg: 'Buscando cotações… ' + feitos + ' de ' + total };
+        const b = document.querySelector('.banner p');
+        if (b) b.textContent = fetchInfo.msg;
+      });
       const found = Object.keys(got);
       const missing = wanted.filter(t => got[t] == null);
-      if (!found.length) fetchInfo = { state: 'err', msg: 'O serviço respondeu, mas nenhuma cotação foi reconhecida. Confira o endereço em Ajustes ou preencha pelo print.' };
-      else fetchInfo = {
+      fetchInfo = {
         state: missing.length ? 'partial' : 'ok', got,
         msg: found.length + ' de ' + wanted.length + ' cotações preenchidas.' + (missing.length ? ' Faltam: ' + missing.join(', ') + '. Preencha pelo print ou à mão.' : ' Confira e salve.')
       };
     } catch (e) {
-      fetchInfo = { state: 'err', msg: 'Não foi possível buscar: ' + e.message };
+      fetchInfo = {
+        state: 'err',
+        msg: e.kind === 'empty'
+          ? 'O serviço respondeu, mas nenhum papel foi reconhecido. Confira o endereço e o token em Ajustes, ou preencha pelo print.'
+          : 'Não foi possível buscar: ' + e.message
+      };
     }
     render();
   }
 
-  // Busca no serviço configurado e extrai os preços de forma tolerante ao formato.
-  async function fetchQuotes(tickers) {
+  // Uma chamada ao serviço, com o erro classificado para quem chama decidir o que fazer.
+  async function fetchBatch(tickers) {
     const url = qp.url.replace('{TICKERS}', tickers.join(qp.sep || ',')).replace('{TOKEN}', encodeURIComponent(qp.token || ''));
     let res;
     try {
       res = await fetch(url, { cache: 'no-store', headers: qp.auth ? { Authorization: qp.auth } : undefined });
     } catch (e) {
-      throw new Error('o serviço não respondeu ou recusou a conexão do app (CORS).');
+      const err = new Error('o serviço não respondeu ou recusou a conexão do app (CORS).');
+      err.kind = 'net'; throw err;
     }
-    if (!res.ok) throw new Error('o serviço respondeu ' + res.status + (res.status === 401 || res.status === 403 ? ' (token inválido?)' : ''));
+    if (!res.ok) {
+      const err = new Error('o serviço respondeu ' + res.status +
+        (res.status === 401 || res.status === 403 ? ' (token inválido ou plano sem acesso a esses papéis?)' :
+          res.status === 429 ? ' (limite de consultas atingido; tente de novo em alguns minutos)' : ''));
+      err.kind = (res.status === 401 || res.status === 403 || res.status === 429) ? 'auth' : 'http';
+      err.status = res.status; throw err;
+    }
     let json;
-    try { json = await res.json(); } catch (e) { throw new Error('a resposta não é JSON.'); }
+    try { json = await res.json(); } catch (e) { const err = new Error('a resposta não é JSON.'); err.kind = 'parse'; throw err; }
     return extractQuotes(json, tickers);
+  }
+
+  // Busca tudo em lotes. Serviços gratuitos costumam limitar quantos papéis cabem por
+  // chamada, então o lote encolhe sozinho quando o servidor reclama, e o tamanho que
+  // funcionou fica guardado para as próximas vezes.
+  async function fetchQuotes(tickers, onProgress) {
+    const out = {};
+    let size = Math.max(1, Math.min(qp.batch || 20, tickers.length));
+    let rest = tickers.slice();
+    let firstCall = true;
+    while (rest.length) {
+      const batch = rest.slice(0, size);
+      let got = null, err = null;
+      try { got = await fetchBatch(batch); } catch (e) { err = e; }
+      if (err && (err.kind === 'net' || (err.kind === 'auth' && firstCall))) throw err; // não adianta insistir
+      firstCall = false;
+      const found = got ? Object.keys(got).length : 0;
+      if (!found && batch.length > 1) {          // lote grande demais: tenta menor
+        size = size > 5 ? 5 : 1;
+        if (qp.batch !== size) { qp.batch = size; save(LS.qp, qp); }
+        continue;
+      }
+      if (got) Object.assign(out, got);
+      rest = rest.slice(batch.length);           // um papel sozinho sem resposta é pulado
+      if (onProgress) onProgress(tickers.length - rest.length, tickers.length);
+    }
+    if (!Object.keys(out).length) {
+      const err = new Error('o serviço respondeu, mas nenhum papel foi reconhecido.');
+      err.kind = 'empty'; throw err;
+    }
+    return out;
   }
   // Procura, em qualquer formato de resposta, objetos que tenham um código e um preço.
   const SYM_KEYS = ['symbol', 'ticker', 'code', 'stock', 'papel', 'sigla'];

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-09-21T17:22:52.337Z",
+  "updatedAt": "2026-09-21T17:30:28.559Z",
   "quotes": {
     "INBR32": {
       "price": 28.35,
@@ -297,7 +297,7 @@
       "id": "c_mubiiskvubz22",
       "name": "FRAN",
       "cash": 0,
-      "capital": 90360.17,
+      "capital": 90949.72,
       "bonusBase": null,
       "positions": [
         {
@@ -328,7 +328,7 @@
         {
           "ticker": "BOVA11",
           "qty": -65,
-          "avgPrice": 183.81
+          "avgPrice": 174.74
         }
       ],
       "transactions": [],
@@ -336,10 +336,10 @@
         {
           "date": "2026-09-21",
           "total": 93467.25,
-          "invested": 90360.17,
+          "invested": 90949.72,
           "cash": 0,
-          "capital": 90360.17,
-          "ret": 0.03438550414413788
+          "capital": 90949.72,
+          "ret": 0.027680459049241657
         }
       ]
     }

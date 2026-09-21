@@ -26,6 +26,13 @@ conferência, onde os preços podem chegar de três formas:
    precisa de um token gratuito. O endereço é um template com `{TICKERS}` e `{TOKEN}`,
    então dá para trocar de serviço sem mexer no código; a leitura da resposta é
    tolerante e reconhece os formatos mais comuns de JSON.
+
+   A busca é feita em lotes. Planos gratuitos costumam limitar quantos papéis cabem em
+   uma chamada, então, quando o serviço recusa um lote grande, o app reduz sozinho (20,
+   depois 5, depois um a um), completa a lista e guarda o tamanho que funcionou para as
+   próximas vezes. Erro de conexão ou token inválido para na primeira tentativa, sem
+   repetir a chamada. Use o botão Testar em Ajustes para conferir a cobertura dos seus
+   papéis antes de depender da busca.
 2. **Print da corretora.** O botão ao lado (ícone de imagem) abre a câmera ou a galeria.
    O print fica fixo no topo da tela, com três tamanhos, enquanto a lista de preços rola
    embaixo: dá para conferir sem trocar de aplicativo. A tecla Enter pula para o próximo

@@ -54,9 +54,13 @@ Use só apelidos para clientes: o site é público. Ao alterar `orihuela/index.h
   três clientes; custo real de MAXR11, RNGO11 e XPCM11 no RD (a XP mostra preço
   médio "Indefinido", então estão com preço médio igual à cotação e lucro zero);
   BPAC11 e ROMI3 do Felipe ainda com preço do print da carteira, não do
-  fechamento; preço médio do BOVA11 alugado do FRAN (a tela de Aluguel não traz
-  essa coluna, então está com o preço da cotação e lucro zero) e o vencimento
-  desse aluguel, 05/10/2026, que o modelo de dados não guarda.
+  fechamento; e o vencimento do aluguel de BOVA11 do FRAN, 05/10/2026, que o
+  modelo de dados não guarda.
+- O preço médio do BOVA11 vendido do FRAN (R$ 174,74) veio da nota de negociação
+  de 04/08/2026. Notas de corretagem servem para isso: quando a tela de Aluguel
+  não traz preço médio, a nota da venda a descoberto traz. As demais operações da
+  mesma nota (venda de 62 GOGL34 e compra de 27 MUTC34) já estavam refletidas nos
+  preços médios do print da carteira e não devem ser lançadas de novo.
 - Quando o print traz preço médio e rentabilidade, ambos arredondados a 2 casas,
   escolha o preço médio dentro da faixa que reproduz os dois valores exibidos
   (foi o caso de M1TA34 no FRAN: 118,9566).
