@@ -44,15 +44,22 @@ Use só apelidos para clientes: o site é público. Ao alterar `orihuela/index.h
 
 ## Orihuela: estado atual e pendências (atualize esta seção ao fim de cada sessão)
 
-- Clientes cadastrados: Felipe (5 ativos) e RD (16 ativos, carteira do próprio
-  usuário, conferida contra o print de custódia de 11/09/2026). Cotações de
-  fechamento de 11/09/2026 para 27 papéis; primeiro ponto do gráfico dos dois
-  clientes nessa data.
-- Pendências de dados: saldo em caixa e base do último bônus (valor e data) de
-  Felipe e RD; custo real de MAXR11, RNGO11 e XPCM11 no RD (a XP mostra preço
+- Clientes cadastrados: Felipe (5 ativos), RD (16 ativos, carteira do próprio
+  usuário, conferida contra o print de custódia de 11/09/2026) e FRAN (6 ativos,
+  conferido contra o print de 21/09/2026: saldo e rentabilidade batem em todas as
+  linhas e a soma fecha com R$ 105.414,90 em ações).
+- Cotações de fechamento de 11/09/2026 para 27 papéis, com MUTC34, GOGL34,
+  TSLA34, INBR32, M1TA34 e BOVA11 atualizados em 21/09/2026 pelo print do FRAN.
+- Pendências de dados: saldo em caixa e base do último bônus (valor e data) dos
+  três clientes; custo real de MAXR11, RNGO11 e XPCM11 no RD (a XP mostra preço
   médio "Indefinido", então estão com preço médio igual à cotação e lucro zero);
   BPAC11 e ROMI3 do Felipe ainda com preço do print da carteira, não do
-  fechamento.
+  fechamento; preço médio do BOVA11 alugado do FRAN (a tela de Aluguel não traz
+  essa coluna, então está com o preço da cotação e lucro zero) e o vencimento
+  desse aluguel, 05/10/2026, que o modelo de dados não guarda.
+- Quando o print traz preço médio e rentabilidade, ambos arredondados a 2 casas,
+  escolha o preço médio dentro da faixa que reproduz os dois valores exibidos
+  (foi o caso de M1TA34 no FRAN: 118,9566).
 - Os demais clientes (mais de 30) serão cadastrados aos poucos por prints da XP:
   aba Carteira (traz preço médio) e, se possível, aba Custódia (lista completa
   para conferência). Sempre devolver ao usuário a tabela comparada antes de
