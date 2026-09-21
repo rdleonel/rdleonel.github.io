@@ -101,6 +101,32 @@ Token: GitHub → Settings → Developer settings → Personal access tokens →
 tokens → Only select repositories (este) → Repository permissions → Contents: Read and
 write. O token fica apenas no aparelho.
 
+## Atualizar o app no celular
+
+Uma versão nova entra no ar quando as mudanças chegam ao branch `main` (o GitHub Pages
+republica o site em um ou dois minutos). No aparelho:
+
+1. Abra o app com internet. Ele procura atualização ao abrir, ao voltar do segundo plano
+   e a cada meia hora.
+2. Quando houver versão nova, aparece um aviso no topo com **Atualizar agora**. Também
+   dá para forçar em Ajustes → Versão do aplicativo → Procurar atualização.
+3. Tocar em atualizar recarrega o app com o código novo.
+
+**Atualizar não apaga dados.** As carteiras ficam no `localStorage` do aparelho e em
+`data.json` no repositório; a atualização troca apenas o código (HTML, CSS, JS e ícones).
+Isso está coberto por teste automatizado.
+
+O que **apaga** os dados do aparelho é remover o app da tela inicial (no iOS os dados de
+um app instalado somem junto) ou usar "Apagar dados locais" em Ajustes. Antes de fazer
+qualquer um dos dois, confirme que não há edições pendentes: a tela inicial avisa
+"Edições locais não enviadas ao servidor". Se houver, envie com o token do GitHub ou use
+Compartilhar JSON. Com tudo sincronizado, reinstalar é seguro: o app baixa o `data.json`
+de novo.
+
+Trocar o ícone exige reinstalar o atalho: o iOS guarda a imagem no momento em que o
+atalho é criado e não a atualiza sozinha. Sincronize, remova o app da tela inicial e
+adicione de novo pelo Safari.
+
 ## PIN e privacidade
 
 O app pede um PIN ao abrir e ao voltar depois de 2 minutos em segundo plano. É um

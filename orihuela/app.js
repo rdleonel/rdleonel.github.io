@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const C = window.OrihuelaCore;
-  const APP_VERSION = '1.0.0';
+  const APP_VERSION = '1.2.0';
   const LS = { state: 'orihuela.state', pin: 'orihuela.pin', gh: 'orihuela.gh', ui: 'orihuela.ui', qp: 'orihuela.quotes' };
   const DEFAULT_GH = { owner: 'rdleonel', repo: 'rdleonel.github.io', branch: 'main', path: 'orihuela/data.json', token: '' };
   // Serviço de cotações. {TICKERS} e {TOKEN} são trocados na hora da busca.
@@ -220,6 +220,13 @@
         h('button', { class: 'btn', text: 'Começar vazio', onClick: () => { adopt(C.emptyData(), null); state.dirty = true; persist(); render(); } }))));
   }
   function renderBanner() {
+    if (updateReady) {
+      return h('div', { class: 'banner info' },
+        h('p', { text: 'Há uma versão nova do aplicativo. Atualizar não apaga nada: as carteiras ficam guardadas.' }),
+        h('div', { class: 'btn-row' },
+          h('button', { class: 'btn sm', text: 'Agora não', onClick: () => { updateReady = false; render(); } }),
+          h('button', { class: 'btn sm primary', text: 'Atualizar agora', onClick: applyUpdate })));
+    }
     if (pendingRemote) {
       return h('div', { class: 'banner' },
         h('p', { text: 'Há dados mais novos no servidor (' + C.fmtDateTime(pendingRemote.data.updatedAt) + '), mas você tem edições locais ainda não enviadas. O que fazer?' }),
@@ -963,9 +970,17 @@
           }
         } }))));
 
+    view.appendChild(h('div', { class: 'card' }, h('h2', { text: 'Versão do aplicativo' }),
+      h('div', { class: 'status-line', style: 'flex-direction:column;gap:4px;margin-bottom:12px' },
+        h('span', {}, 'Orihuela Consulting · versão ', h('b', { text: APP_VERSION })),
+        h('span', { text: updateReady ? 'Versão nova pronta para instalar.' : 'Atualizar troca só o código; as carteiras continuam salvas.' })),
+      h('div', { class: 'btn-row', style: 'margin:0' },
+        updateReady
+          ? h('button', { class: 'btn primary', text: 'Instalar versão nova', onClick: applyUpdate })
+          : h('button', { class: 'btn', text: 'Procurar atualização', onClick: () => checkUpdate(true) }))));
+
     view.appendChild(h('div', { class: 'card' }, h('h2', { text: 'Sobre' }),
       h('div', { class: 'status-line', style: 'flex-direction:column;gap:4px' },
-        h('span', {}, 'Orihuela Consulting · app ', h('b', { text: APP_VERSION })),
         h('span', { text: 'Os dados ficam em data.json no repositório e em cópia local para uso off-line. O PIN bloqueia só a tela deste aparelho.' }))));
   }
   async function shareJSON() {
@@ -1396,12 +1411,51 @@
   }
 
   // ---------- início ----------
+  // ---------- atualização do app ----------
+  // Os dados moram no localStorage e no data.json do servidor, então recarregar para
+  // pegar uma versão nova nunca apaga carteira: só troca o código do app.
+  let swReg = null, updateReady = false, checking = false;
+  function setupUpdates() {
+    if (!('serviceWorker' in navigator)) return;
+    let hadController = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then(reg => {
+      swReg = reg;
+      if (reg.waiting && hadController) { updateReady = true; render(); }
+      reg.addEventListener('updatefound', () => {
+        const nw = reg.installing;
+        if (!nw) return;
+        nw.addEventListener('statechange', () => {
+          if (nw.state === 'installed' && navigator.serviceWorker.controller) { updateReady = true; render(); }
+        });
+      });
+    }).catch(() => { });
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (hadController) { updateReady = true; render(); }
+      hadController = true;
+    });
+    // procura versão nova ao voltar para o app e de tempos em tempos
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) checkUpdate(); });
+    setInterval(checkUpdate, 30 * 60 * 1000);
+  }
+  function checkUpdate(manual) {
+    if (!swReg || !navigator.onLine) { if (manual) toast('Sem conexão para procurar atualização.', true); return; }
+    if (checking) return;
+    checking = true;
+    swReg.update().then(() => {
+      setTimeout(() => {
+        checking = false;
+        if (manual && !updateReady) toast('Você já está na versão mais recente.');
+      }, 2500);
+    }).catch(() => { checking = false; if (manual) toast('Não foi possível procurar atualização.', true); });
+  }
+  function applyUpdate() {
+    // Edições locais ainda não enviadas ficam no localStorage e sobrevivem ao reload.
+    if (swReg && swReg.waiting) { try { swReg.waiting.postMessage({ type: 'SKIP_WAITING' }); } catch (e) { } }
+    setTimeout(() => location.reload(), 150);
+  }
+
   function init() {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js').catch(() => { });
-      let reloaded = false;
-      navigator.serviceWorker.addEventListener('controllerchange', () => { if (navigator.serviceWorker.controller && !reloaded && state.data) { reloaded = true; /* nova versão pronta; recarrega na próxima abertura */ } });
-    }
+    setupUpdates();
     if (!pinCfg.get()) showLock('setup'); else showLock('unlock');
     render();
     syncFromRemote({});
