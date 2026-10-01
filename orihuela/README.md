@@ -4,6 +4,48 @@ App de acompanhamento das carteiras dos clientes (todos na XP). Funciona como PW
 `https://rdleonel.github.io/orihuela/`, pode ser instalado na tela inicial do celular
 e abre off-line com a última versão dos dados que foi sincronizada.
 
+## Navegação
+
+Pensada para uso com uma mão no iPhone: **nada clicável fica no topo da tela**. As
+cinco telas ficam numa barra de abas fixa no rodapé (Início, Cotações, Clientes,
+Desempenho, Ajustes), e a ação principal de cada tela fica numa barra logo acima
+dela ("Atualizar todas as cotações", "+ Novo cliente", "Nova operação"). As ações
+secundárias da carteira estão no botão ••• ao lado. Para sair da carteira de um
+cliente, toque na aba Clientes ou arraste a partir da borda esquerda. Quando o
+teclado abre, as abas saem de cena e a barra de ação encosta no teclado.
+
+## Atualizar as cotações
+
+O botão **Atualizar cotações** fica fixo no rodapé da tela inicial. Ele abre a tela de
+conferência, onde os preços podem chegar de três formas:
+
+1. **Busca automática.** Com um serviço configurado em Ajustes, o app já busca tudo ao
+   abrir a tela: cada campo vem preenchido, com borda verde e a variação em relação ao
+   preço anterior ao lado (uma variação absurda denuncia leitura errada na hora). O
+   padrão é a brapi.dev, que cobre ações, BDRs, ETFs e fundos imobiliários da B3 e
+   precisa de um token gratuito. O endereço é um template com `{TICKERS}` e `{TOKEN}`,
+   então dá para trocar de serviço sem mexer no código; a leitura da resposta é
+   tolerante e reconhece os formatos mais comuns de JSON.
+
+   A busca é feita em lotes. Planos gratuitos costumam limitar quantos papéis cabem em
+   uma chamada, então, quando o serviço recusa um lote grande, o app reduz sozinho (20,
+   depois 5, depois um a um), completa a lista e guarda o tamanho que funcionou para as
+   próximas vezes. Erro de conexão ou token inválido para na primeira tentativa, sem
+   repetir a chamada. Use o botão Testar em Ajustes para conferir a cobertura dos seus
+   papéis antes de depender da busca.
+2. **Print da corretora.** O botão ao lado (ícone de imagem) abre a câmera ou a galeria.
+   O print fica fixo no topo da tela, com três tamanhos, enquanto a lista de preços rola
+   embaixo: dá para conferir sem trocar de aplicativo. A tecla Enter pula para o próximo
+   papel.
+3. **À mão**, digitando direto nos campos.
+
+Em qualquer caso nada é gravado antes de você tocar em **Salvar cotações**, e o mesmo
+toque registra um ponto no gráfico de todos os clientes na data escolhida.
+
+O app não lê o print sozinho: isso exigiria um serviço de visão e uma chave de API
+guardada no aparelho. Para extração automática a partir de imagens, o caminho continua
+sendo mandar o print numa sessão do Claude neste repositório.
+
 ## O que o app mostra
 
 - **Cotações**: todas as ações que aparecem em pelo menos uma carteira, com a última
@@ -65,6 +107,32 @@ mostra um aviso e deixa escolher: usar a do servidor ou manter a local.
 Token: GitHub → Settings → Developer settings → Personal access tokens → Fine-grained
 tokens → Only select repositories (este) → Repository permissions → Contents: Read and
 write. O token fica apenas no aparelho.
+
+## Atualizar o app no celular
+
+Uma versão nova entra no ar quando as mudanças chegam ao branch `main` (o GitHub Pages
+republica o site em um ou dois minutos). No aparelho:
+
+1. Abra o app com internet. Ele procura atualização ao abrir, ao voltar do segundo plano
+   e a cada meia hora.
+2. Quando houver versão nova, aparece um aviso no topo com **Atualizar agora**. Também
+   dá para forçar em Ajustes → Versão do aplicativo → Procurar atualização.
+3. Tocar em atualizar recarrega o app com o código novo.
+
+**Atualizar não apaga dados.** As carteiras ficam no `localStorage` do aparelho e em
+`data.json` no repositório; a atualização troca apenas o código (HTML, CSS, JS e ícones).
+Isso está coberto por teste automatizado.
+
+O que **apaga** os dados do aparelho é remover o app da tela inicial (no iOS os dados de
+um app instalado somem junto) ou usar "Apagar dados locais" em Ajustes. Antes de fazer
+qualquer um dos dois, confirme que não há edições pendentes: a tela inicial avisa
+"Edições locais não enviadas ao servidor". Se houver, envie com o token do GitHub ou use
+Compartilhar JSON. Com tudo sincronizado, reinstalar é seguro: o app baixa o `data.json`
+de novo.
+
+Trocar o ícone exige reinstalar o atalho: o iOS guarda a imagem no momento em que o
+atalho é criado e não a atualiza sozinha. Sincronize, remova o app da tela inicial e
+adicione de novo pelo Safari.
 
 ## PIN e privacidade
 
