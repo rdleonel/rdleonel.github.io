@@ -19,6 +19,21 @@ seja acionada pelo assunto. O resumo de uma linha: os dados ficam em
 Ao alterar `orihuela/index.html`, `app.js`, `styles.css` ou `core.js`, incremente
 `CACHE` em `orihuela/sw.js`. Use só apelidos para clientes: o site é público.
 
+## Testes
+
+Depois de mexer no app, rode `bash orihuela/tests/run.sh`. São cinco testes de ponta a
+ponta num navegador de verdade, em tela de iPhone: navegação, cálculos pela interface,
+atualização de cotações, busca em lotes e o ciclo de atualização do app. Detalhes e
+requisitos em `orihuela/tests/README.md`. Os ícones saem de
+`node orihuela/tools/mkicon.js`.
+
+## Continuidade
+
+O projeto inteiro vive neste repositório: app, dados, testes, a skill `orihuela` e estas
+notas. Nada depende de uma conta específica do Claude nem do histórico de uma conversa.
+Para continuar de outra conta, basta conectar o GitHub e abrir este repositório; a skill
+e este arquivo carregam sozinhos.
+
 ## Estado atual e pendências (atualize ao fim de cada sessão)
 
 - Clientes: Felipe (5 ativos), RD (16 ativos, carteira do próprio usuário, conferida
