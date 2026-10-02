@@ -36,7 +36,7 @@ e este arquivo carregam sozinhos.
 
 ## Estado atual e pendências (atualize ao fim de cada sessão)
 
-- Clientes: Felipe (5 ativos), RD (16 ativos, carteira do próprio usuário, conferida
+- Clientes: Nil (7 ativos, cadastrado em 01/10/2026 por print sem preço médio: todos os custos estão iguais à cotação, lucro zero até o usuário mandar os preços médios; caixa R$ 201,23; base de bônus R$ 700.000 em 31/01/2026, dia aproximado; a posição vendida de IVVB11 aguarda o print de Aluguel), Felipe (5 ativos), RD (16 ativos, carteira do próprio usuário, conferida
   contra o print de custódia de 11/09/2026), FRAN (6 ativos) e GABRIEL (5 ativos), os
   dois últimos conferidos linha a linha contra prints de 21/09/2026.
 - Cotações de fechamento de 11/09/2026 para 27 papéis, atualizadas em 21/09/2026 pelos
@@ -45,6 +45,8 @@ e este arquivo carregam sozinhos.
   momentos diferentes: o do GABRIEL traz preços mais baixos em INBR32, MUTC34 e TSLA34,
   e prevaleceu por ser o mais recente recebido. Confirmar com o usuário se estiver
   errado.
+- Cotações de 01/10/2026 (print de cotações da XP) atualizaram IVVB11, MUTC34, ROXO34, INBR32, PRIO3, BIDU34, M2RV34, DASA3, GOGL34, M1TA34 e BOVA11 e criaram um ponto de 01/10 para todos os clientes. Mudou bastante: Felipe de +25,85% para +49,30% (confira contra a XP).
+- Cliente P (29 posições, ~R$ 4,9 mi) está em rascunho local e ainda não foi publicado.
 - Pendências de dados: saldo em caixa e base do último bônus (valor e data) dos três
   clientes; custo real de MAXR11, RNGO11 e XPCM11 no RD (a XP mostra preço médio
   "Indefinido", então estão com preço médio igual à cotação e lucro zero); BPAC11 e
