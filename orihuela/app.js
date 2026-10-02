@@ -2,8 +2,9 @@
 (function () {
   'use strict';
   const C = window.OrihuelaCore;
-  const APP_VERSION = '1.3.0';
-  const LS = { state: 'orihuela.state', pin: 'orihuela.pin', gh: 'orihuela.gh', ui: 'orihuela.ui', qp: 'orihuela.quotes' };
+  const V = window.OrihuelaVision;
+  const APP_VERSION = '1.4.0';
+  const LS = { state: 'orihuela.state', pin: 'orihuela.pin', gh: 'orihuela.gh', ui: 'orihuela.ui', qp: 'orihuela.quotes', ai: 'orihuela.ai' };
   const DEFAULT_GH = { owner: 'rdleonel', repo: 'rdleonel.github.io', branch: 'main', path: 'orihuela/data.json', token: '' };
   // Serviço de cotações. {TICKERS} e {TOKEN} são trocados na hora da busca.
   const DEFAULT_QP = { url: 'https://brapi.dev/api/quote/{TICKERS}?token={TOKEN}', token: '', sep: ',', auth: '', batch: 20 };
@@ -18,6 +19,7 @@
   if (state.data) state.data = C.normalize(state.data);
   let gh = Object.assign({}, DEFAULT_GH, load(LS.gh) || {});
   let qp = Object.assign({}, DEFAULT_QP, load(LS.qp) || {});
+  let ai = Object.assign({ key: '', model: '' }, load(LS.ai) || {});   // leitura de prints por IA (chave só neste aparelho)
   let ui = Object.assign({ chart: { total: true, ret: true }, perfSort: 'name' }, load(LS.ui) || {});
   let pendingRemote = null;   // versão do servidor que conflita com edições locais
   let syncStatus = 'idle';    // idle | syncing | offline | error | ok
@@ -665,6 +667,7 @@
 
     setActionBar(actionRow(
       h('button', { class: 'btn primary grow', text: 'Nova operação', onClick: () => txDialog(c) }),
+      h('button', { class: 'btn', style: 'flex:none', text: '📷 Print', 'aria-label': 'Ler print com IA', onClick: () => printDialog(c) }),
       h('button', { class: 'btn', style: 'width:56px;flex:none', text: '•••', 'aria-label': 'Mais ações', onClick: () => clientMenu(c) })));
 
     // tabela de posições
@@ -736,6 +739,7 @@
       h('span', {}, label, sub ? h('span', { class: 'sub', text: sub }) : null));
     openModal(c.name, [
       h('div', { class: 'sheet-menu' },
+        item('▣', 'Ler print com IA', 'operação ou carteira da XP', () => printDialog(c)),
         item('＋', 'Adicionar ação', 'cotas e preço médio, sem mexer no caixa', () => positionDialog(c, null)),
         item('✎', 'Editar cliente', 'nome, caixa, capital e base do bônus', () => editClientDialog(c)),
         item('◉', 'Registrar ponto agora', 'novo ponto no gráfico com a data de hoje', () => { mutate(data => C.snapshotClient(data, c)); toast('Ponto de hoje registrado.'); }),
@@ -895,6 +899,149 @@
     ]);
   }
 
+  // ---------- LER PRINT COM IA ----------
+  // Fluxo: escolher a leitura e os prints -> a IA lê -> CONFERÊNCIA editável -> só então grava.
+  // Nada entra no cliente sem o toque em "Aplicar", e antes de gravar tudo é testado num clone.
+  const numStr = n => n == null || !Number.isFinite(n) ? '' : String(n).replace('.', ',');
+  function printDialog(c) {
+    const st = { mode: 'positions', files: [], rows: null, notes: '', missing: [], busy: false, err: '' };
+    const body = h('div', { class: 'pv' });
+    openModal('Ler print · ' + c.name, body);
+
+    function draw() { body.innerHTML = ''; body.appendChild(st.rows ? reviewStep() : pickStep()); }
+
+    function pickStep() {
+      const box = h('div');
+      const seg = h('div', { class: 'seg' },
+        h('button', { type: 'button', class: 'btn' + (st.mode === 'positions' ? ' primary' : ''), text: 'Carteira', onClick: () => { st.mode = 'positions'; draw(); } }),
+        h('button', { type: 'button', class: 'btn' + (st.mode === 'ops' ? ' primary' : ''), text: 'Operação', onClick: () => { st.mode = 'ops'; draw(); } }));
+      box.appendChild(seg);
+      box.appendChild(h('p', { class: 'small dim', style: 'margin:10px 0', text: st.mode === 'positions'
+        ? 'Tela da carteira da XP: lê cotas e preço médio de cada papel e atualiza as posições do cliente. Papéis que não aparecem no print não são mexidos.'
+        : 'Boleta, nota de negociação ou ordem executada: lê compras, vendas e aluguéis e registra como operações (preço médio e caixa se ajustam). Cuidado: operação que já está no preço médio da carteira não deve ser lançada de novo.' }));
+      const list = h('div', { class: 'pv-files' });
+      st.files.forEach((f, i) => list.appendChild(h('div', { class: 'pv-file' },
+        h('span', { text: f.name || 'print ' + (i + 1) }),
+        h('button', { type: 'button', class: 'x', text: '×', 'aria-label': 'Remover', onClick: () => { st.files.splice(i, 1); draw(); } }))));
+      box.appendChild(list);
+      box.appendChild(h('button', { type: 'button', class: 'btn block', style: 'margin-bottom:10px', text: st.files.length ? 'Adicionar mais prints' : 'Escolher prints', onClick: () => {
+        if (st.files.length >= V.MAX_IMAGES) { st.err = 'No máximo ' + V.MAX_IMAGES + ' imagens por vez.'; draw(); return; }
+        const inp = h('input', { type: 'file', accept: 'image/*', multiple: true, style: 'display:none' });
+        document.body.appendChild(inp);
+        inp.addEventListener('change', () => {
+          Array.from(inp.files || []).forEach(f => { if (st.files.length < V.MAX_IMAGES) st.files.push(f); });
+          inp.remove(); st.err = ''; draw();
+        });
+        inp.click();
+      } }));
+      box.appendChild(h('div', { class: 'hint', style: 'margin-bottom:10px', text: 'A imagem é enviada à API da Anthropic só para a leitura e não fica guardada no app. Cubra nome, CPF e número da conta antes de enviar. Prints em sequência da mesma tela podem ir juntos.' }));
+      if (!ai.key) box.appendChild(h('div', { class: 'form-error', text: 'Falta a chave da Anthropic. Cadastre em Ajustes → Leitura de prints.' }));
+      box.appendChild(h('div', { class: 'form-error', text: st.err }));
+      box.appendChild(h('div', { class: 'actions' },
+        h('button', { type: 'button', class: 'btn', text: 'Cancelar', onClick: closeModal }),
+        ai.key
+          ? h('button', { type: 'button', class: 'btn primary', text: st.busy ? 'Lendo…' : 'Ler print', disabled: !st.files.length || st.busy, onClick: read })
+          : h('button', { type: 'button', class: 'btn primary', text: 'Abrir Ajustes', onClick: () => { closeModal(); go('#/settings'); } })));
+      return box;
+    }
+
+    async function read() {
+      st.busy = true; st.err = ''; draw();
+      try {
+        const imgs = [];
+        for (const f of st.files) imgs.push(await V.prepareImage(f));
+        const res = await V.extract(st.mode, imgs, { key: ai.key, model: ai.model || undefined });
+        st.rows = V.buildPlan(state.data, c, st.mode, res.items);
+        st.notes = res.notes;
+        st.missing = st.mode === 'positions' ? V.missingFromPrint(c, st.rows) : [];
+      } catch (e) { st.err = e.message || String(e); }
+      st.busy = false; draw();
+    }
+
+    function reviewStep() {
+      const box = h('div');
+      const rows = st.rows;
+      if (!rows.length) {
+        box.appendChild(h('p', { text: 'Não reconheci nenhuma linha neste print.' }));
+        if (st.notes) box.appendChild(h('p', { class: 'small dim', text: 'A IA disse: ' + st.notes }));
+        box.appendChild(h('div', { class: 'actions' },
+          h('button', { type: 'button', class: 'btn', text: 'Cancelar', onClick: closeModal }),
+          h('button', { type: 'button', class: 'btn primary', text: 'Voltar', onClick: () => { st.rows = null; draw(); } })));
+        return box;
+      }
+      const applyBtn = h('button', { type: 'button', class: 'btn primary', text: 'Aplicar' });
+      const err = h('div', { class: 'form-error' });
+      function refreshApply() {
+        const inc = rows.filter(r => r.include);
+        const blocked = inc.some(r => r.blocked);
+        applyBtn.textContent = blocked ? 'Corrija os erros' : 'Aplicar ' + inc.length + (inc.length === 1 ? ' item' : ' itens');
+        applyBtn.disabled = !inc.length || blocked;
+      }
+      box.appendChild(h('p', { class: 'small dim', style: 'margin-bottom:10px', text: 'Confira cada linha com o print. Você pode corrigir qualquer valor ou desmarcar a linha. Nada foi gravado ainda.' }));
+      rows.forEach(r => {
+        const warnBox = h('div');
+        const rowEl = h('div', { class: 'pv-row' + (r.include ? '' : ' off') });
+        function paintWarn() {
+          V.validateRow(state.data, c, r);
+          warnBox.innerHTML = '';
+          r.warnings.forEach(w => warnBox.appendChild(h('div', { class: 'pv-warn ' + w.level, text: (w.level === 'err' ? '⛔ ' : w.level === 'warn' ? '⚠ ' : 'ℹ ') + w.text })));
+          rowEl.classList.toggle('off', !r.include);
+          refreshApply();
+        }
+        const cb = h('input', { type: 'checkbox', checked: r.include, 'aria-label': 'Incluir ' + r.ticker });
+        cb.addEventListener('change', () => { r.include = cb.checked; paintWarn(); });
+        const tk = h('input', { type: 'text', value: r.ticker, autocapitalize: 'characters', autocorrect: 'off', spellcheck: false, class: 'pv-ticker' });
+        tk.addEventListener('input', () => { tk.value = tk.value.toUpperCase(); r.ticker = C.normTicker(tk.value); paintWarn(); });
+        const num = (val, onSet, ph) => {
+          const i = h('input', { type: 'text', inputmode: 'decimal', value: numStr(val), placeholder: ph || '' });
+          i.addEventListener('focus', () => i.select());
+          i.addEventListener('input', () => { const n = C.parseNum(i.value); onSet(Number.isFinite(n) ? n : null); paintWarn(); });
+          return i;
+        };
+        const fld = (label, el) => h('div', { class: 'field' }, h('label', { text: label }), el);
+        rowEl.appendChild(h('div', { class: 'pv-head' }, cb, tk));
+        if (r.mode === 'ops') {
+          const sel = h('select', {}, [['buy', 'Compra'], ['sell', 'Venda'], ['short', 'Venda a descoberto']].map(([v, l]) => h('option', { value: v, text: l, selected: (r.side === 'unknown' ? '' : r.type) === v })));
+          if (r.side === 'unknown') sel.insertBefore(h('option', { value: '', text: 'Escolha…', selected: true }), sel.firstChild);
+          sel.addEventListener('change', () => { if (sel.value) { r.side = sel.value; r.type = sel.value; } paintWarn(); });
+          const dt = h('input', { type: 'date', value: r.date || '' });
+          dt.addEventListener('change', () => { r.date = dt.value || null; paintWarn(); });
+          rowEl.appendChild(h('div', { class: 'pv-grid' },
+            fld('Tipo', sel), fld('Data', dt),
+            fld('Quantidade', num(r.qty, n => { r.qty = n; })),
+            fld('Preço (R$)', num(r.price, n => { r.price = n; }))));
+        } else {
+          rowEl.appendChild(h('div', { class: 'pv-before', text: r.before ? 'Hoje no app: ' + C.fmtInt(r.before.qty) + ' cotas · PM ' + C.fmtNum(r.before.avg) : 'Papel novo nesta carteira' }));
+          rowEl.appendChild(h('div', { class: 'pv-grid' },
+            fld('Cotas (negativo = vendida)', num(r.qty, n => { r.qty = n; })),
+            fld('Preço médio (R$)', num(r.avg, n => { r.avg = n; r.method = 'editado'; }))));
+        }
+        rowEl.appendChild(warnBox);
+        box.appendChild(rowEl);
+        paintWarn();
+      });
+      if (st.missing.length) box.appendChild(h('p', { class: 'small dim', text: 'No app, mas fora deste print (não serão alterados): ' + st.missing.join(', ') + '.' }));
+      if (st.notes) box.appendChild(h('p', { class: 'small dim', text: 'A IA avisou: ' + st.notes }));
+      box.appendChild(err);
+      applyBtn.addEventListener('click', () => {
+        err.textContent = '';
+        const msg = V.dryRun(state.data, c, rows);
+        if (msg) { err.textContent = msg; return; }
+        let done;
+        try { mutate(data => { done = V.applyRows(data, c, rows); }); }
+        catch (e) { err.textContent = e.message || String(e); return; }
+        closeModal();
+        toast(done.length + (done.length === 1 ? ' item aplicado' : ' itens aplicados') + ' em ' + c.name + '.');
+      });
+      box.appendChild(h('div', { class: 'actions' },
+        h('button', { type: 'button', class: 'btn', text: 'Voltar', onClick: () => { st.rows = null; draw(); } }),
+        applyBtn));
+      refreshApply();
+      return box;
+    }
+    draw();
+  }
+
   // ---------- DESEMPENHO ----------
   function viewPerformance(view) {
     const d = state.data;
@@ -961,6 +1108,28 @@
         } catch (err) { qMsg.textContent = 'Falha: ' + err.message; }
       } })));
     view.appendChild(qCard);
+
+    // Leitura de prints por IA
+    const a = {};
+    const aiCard = h('div', { class: 'card' }, h('h2', { text: 'Leitura de prints (IA)' }),
+      h('p', { class: 'small dim', style: 'margin-bottom:10px', text: 'Na carteira de um cliente, o botão "Print" manda a imagem da XP para a API da Anthropic, lê posições, preço médio e operações, e mostra tudo para você conferir antes de gravar. Crie uma chave em console.anthropic.com (Settings → API keys) e cole abaixo. Cada leitura custa centavos.' }));
+    a.key = h('input', { type: 'password', value: ai.key, placeholder: 'sk-ant-…', autocapitalize: 'off', autocorrect: 'off', spellcheck: false });
+    aiCard.appendChild(h('div', { class: 'field' }, h('label', { text: 'Chave da API da Anthropic' }), a.key,
+      h('div', { class: 'hint', text: 'Fica apenas neste aparelho, nunca vai para o repositório. Quem tiver acesso ao aparelho desbloqueado pode usá-la: use uma chave só para isto, com limite de gasto baixo.' })));
+    a.model = h('input', { type: 'text', value: ai.model, placeholder: V.DEFAULT_MODEL, autocapitalize: 'off', autocorrect: 'off', spellcheck: false });
+    aiCard.appendChild(h('div', { class: 'field' }, h('label', { text: 'Modelo (opcional)' }), a.model));
+    const aMsg = h('div', { class: 'form-error' });
+    aiCard.appendChild(aMsg);
+    const saveAi = () => { ai.key = a.key.value.trim(); ai.model = a.model.value.trim(); save(LS.ai, ai); };
+    aiCard.appendChild(h('div', { class: 'btn-row', style: 'margin:0' },
+      h('button', { class: 'btn primary', text: 'Salvar', onClick: () => { saveAi(); aMsg.textContent = ''; toast('Chave salva.'); } }),
+      h('button', { class: 'btn', text: 'Testar', onClick: async () => {
+        saveAi(); aMsg.textContent = 'Testando…';
+        try { await V.ping({ key: ai.key, model: ai.model }); aMsg.textContent = ''; toast('Chave funcionando.'); }
+        catch (e) { aMsg.textContent = 'Falha: ' + e.message; }
+      } }),
+      ai.key ? h('button', { class: 'btn danger', text: 'Remover', onClick: () => { ai.key = ''; ai.model = ''; del(LS.ai); render(); toast('Chave removida.'); } }) : null));
+    view.appendChild(aiCard);
 
     // GitHub
     const f = {};
@@ -1442,8 +1611,8 @@
     });
     const forgot = mode === 'unlock' ? h('button', { class: 'forgot', text: 'Esqueci o PIN', onClick: async () => {
       done();
-      if (await confirmDialog('Redefinir o PIN apaga os dados locais e o token do GitHub deste aparelho. O arquivo no servidor não é afetado. Continuar?')) {
-        pinCfg.clear(); del(LS.state); del(LS.gh); location.reload();
+      if (await confirmDialog('Redefinir o PIN apaga os dados locais e as chaves (GitHub e Anthropic) deste aparelho. O arquivo no servidor não é afetado. Continuar?')) {
+        pinCfg.clear(); del(LS.state); del(LS.gh); del(LS.ai); location.reload();
       } else showLock('unlock');
     } }) : (mode === 'change' ? h('button', { class: 'forgot', text: 'Cancelar', onClick: done }) : null);
     root.appendChild(h('div', { class: 'lock' },

@@ -34,6 +34,16 @@ notas. Nada depende de uma conta específica do Claude nem do histórico de uma 
 Para continuar de outra conta, basta conectar o GitHub e abrir este repositório; a skill
 e este arquivo carregam sozinhos.
 
+## Leitura de prints dentro do app
+
+O botão **Print** na tela do cliente lê imagens da XP com a API da Anthropic (chamada
+direta do navegador, chave só no aparelho, cadastrada em Ajustes) e mostra uma lista
+editável para conferência antes de gravar. Duas leituras: Carteira (posição e preço médio)
+e Operação (boleta/nota). Código em `orihuela/vision.js` (partes puras, testadas em
+`orihuela/tests/unit-vision.js`) e `orihuela/app.js` (`printDialog`). Pela linha de comando
+e pelas sessões do Claude o fluxo continua o mesmo; não duplique regra de cálculo, o app
+só chama `applyTransaction` e `setPosition` do `core.js`.
+
 ## Estado atual e pendências (atualize ao fim de cada sessão)
 
 - Clientes: Felipe (5 ativos), RD (16 ativos, carteira do próprio usuário, conferida

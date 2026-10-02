@@ -322,3 +322,22 @@ textarea.mono{min-height:120px}
   .nav-card .chev{display:none}
 }
 .ic24{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+/* leitura de prints por IA */
+.seg{display:flex;gap:6px}
+.seg .btn{flex:1}
+.pv-files{margin:0 0 8px}
+.pv-file{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-2);font-size:13px;margin-bottom:6px}
+.pv-file .x{color:var(--muted);font-size:20px;width:32px;height:32px}
+.pv-row{border:1px solid var(--border);border-radius:var(--radius);background:var(--surface-2);padding:10px;margin-bottom:8px}
+.pv-row.off{opacity:.55}
+.pv-head{display:flex;align-items:center;gap:10px}
+.pv-head input[type=checkbox]{width:22px;height:22px;flex:none}
+.pv-ticker{font-weight:700;letter-spacing:.3px}
+.pv-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.pv-grid .field{margin:0}
+.pv-before{font-size:12px;color:var(--text-2);margin-top:6px}
+.pv-warn{font-size:12px;line-height:1.35;margin-top:6px}
+.pv-warn.err{color:var(--red)}
+.pv-warn.warn{color:var(--accent)}
+.pv-warn.info{color:var(--text-2)}

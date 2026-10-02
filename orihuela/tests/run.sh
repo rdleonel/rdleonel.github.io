@@ -17,6 +17,13 @@ sleep 1
 
 TESTS=${1:-"nav func quotes batch update"}
 FALHAS=0
+
+# teste da leitura de prints (Node puro, sem navegador)
+if [ -z "${1:-}" ]; then
+  echo ""
+  echo "=== vision (unidade) ==="
+  if ! node orihuela/tests/unit-vision.js; then FALHAS=$((FALHAS + 1)); echo "--- FALHOU: vision"; fi
+fi
 for t in $TESTS; do
   echo ""
   echo "=== $t ==="
