@@ -1,12 +1,13 @@
 // Service worker do Orihuela Consulting (escopo: /orihuela/).
 // Shell do app: cache-first com atualização em segundo plano.
 // data.json: sempre tenta a rede primeiro; sem rede, usa a última cópia em cache.
-const CACHE = 'orihuela-v7';
+const CACHE = 'orihuela-v8';
 const SHELL = [
   './',
   './index.html',
   './styles.css',
   './core.js',
+  './vision.js',
   './app.js',
   './manifest.json',
   './icons/icon-192.png',
