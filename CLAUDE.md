@@ -21,10 +21,10 @@ Ao alterar `orihuela/index.html`, `app.js`, `styles.css` ou `core.js`, increment
 
 ## Testes
 
-Depois de mexer no app, rode `bash orihuela/tests/run.sh`. São cinco testes de ponta a
+Depois de mexer no app, rode `bash orihuela/tests/run.sh`. São seis testes de ponta a
 ponta num navegador de verdade, em tela de iPhone: navegação, cálculos pela interface,
-atualização de cotações, busca em lotes e o ciclo de atualização do app. Detalhes e
-requisitos em `orihuela/tests/README.md`. Os ícones saem de
+atualização de cotações, busca em lotes, leitura de prints pela IA e o ciclo de
+atualização do app. Detalhes e requisitos em `orihuela/tests/README.md`. Os ícones saem de
 `node orihuela/tools/mkicon.js`.
 
 ## Continuidade
@@ -63,6 +63,14 @@ e este arquivo carregam sozinhos.
   compra de 7.811 INBR32) já estão refletidas no print da carteira.
 - Serviço de cotações (brapi.dev) configurável em Ajustes; o usuário estava obtendo o
   token para testar. Falta confirmar a cobertura de INBR32, MAXR11, RNGO11 e XPCM11.
+- Versão 1.4.0: o app lê prints sozinho. O botão da câmera na tela inicial (e o item "Ler
+  print da carteira" no menu ••• do cliente) manda até cinco imagens para
+  `api.anthropic.com` e abre uma tela de conferência linha a linha. A chave fica em
+  Ajustes → Leitura de prints, só no aparelho; a chamada vai direto do navegador, com o
+  cabeçalho `anthropic-dangerous-direct-browser-access`. Falta o usuário colocar a chave e
+  testar com um print de verdade: as instruções de leitura (preço médio preciso, posição
+  vendida negativa, não inventar) estão em `AI_SYSTEM` no `app.js` e ainda não foram
+  aferidas contra um print real.
 - Os demais clientes (mais de 30) entram aos poucos por prints.
 - Rentabilidade acumulada = patrimônio ÷ capital aportado − 1. Enquanto o cliente não
   tem operações registradas, o capital acompanha investido + caixa.

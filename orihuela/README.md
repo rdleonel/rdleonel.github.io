@@ -42,9 +42,36 @@ conferência, onde os preços podem chegar de três formas:
 Em qualquer caso nada é gravado antes de você tocar em **Salvar cotações**, e o mesmo
 toque registra um ponto no gráfico de todos os clientes na data escolhida.
 
-O app não lê o print sozinho: isso exigiria um serviço de visão e uma chave de API
-guardada no aparelho. Para extração automática a partir de imagens, o caminho continua
-sendo mandar o print numa sessão do Claude neste repositório.
+## Ler prints pela IA
+
+O botão da câmera, ao lado de "Atualizar cotações" na tela inicial, manda os prints para a
+API da Anthropic, que devolve as linhas já preenchidas. Serve para carteira, custódia,
+tela de cotações e nota de negociação; o mesmo botão aparece dentro da carteira de um
+cliente, no menu •••, já com o cliente escolhido.
+
+O ciclo tem três passos. Você escolhe até cinco imagens (câmera ou galeria) e toca em
+**Ler com a IA**. Vem a tela de conferência, com uma linha por posição, operação e
+cotação reconhecida: cada uma tem caixa de seleção e campos editáveis, e mostra ao lado o
+que o cliente já tem hoje. Tocar em **Aplicar** grava só o que estiver marcado.
+
+O que a IA é instruída a fazer, e que vale conferir na tela:
+
+- Quantidade negativa para posição vendida (linha "Aluguel - Tomador" na XP).
+- Preço médio preciso: quando o print traz o valor da posição e o resultado em reais, ela
+  calcula `(posição − resultado) ÷ quantidade` com 5 ou 6 casas, em vez de usar o preço
+  médio arredondado que a tela mostra.
+- Nada de inventar: preço médio "Indefinido" ou coluna cortada voltam vazios, e a linha
+  avisa que o papel vai entrar valendo a cotação, com lucro zero.
+- Nome: no máximo o primeiro nome ou apelido, nunca nome completo, CPF ou conta.
+
+A chave da API fica em Ajustes → Leitura de prints, guardada apenas neste aparelho, e as
+imagens vão do celular direto para a API, sem passar por nenhum servidor deste app. A
+cobrança é por uso (alguns centavos por leitura, conforme o tamanho do print). Sem chave
+configurada o app diz isso e oferece a conferência manual com o print na tela.
+
+Mandar o print numa sessão do Claude neste repositório continua funcionando e continua
+sendo o caminho quando a leitura exige julgamento: cruzar uma nota de negociação com o
+preço médio que já está na carteira, por exemplo.
 
 ## O que o app mostra
 
@@ -89,14 +116,16 @@ O arquivo `orihuela/data.json` é a fonte de verdade e fica no repositório. O a
 esse arquivo quando tem internet e guarda uma cópia local (localStorage) para uso
 off-line.
 
-Há duas formas de o arquivo ser alterado:
+Há três formas de o arquivo ser alterado:
 
-1. **Pelo Claude, a partir de prints** (fluxo principal). Você manda o print da XP
-   (cotações, boleta de compra ou venda, posição consolidada) numa sessão do Claude Code
-   neste repositório. Ele lê a imagem, roda `orihuela/tools/cli.js`, confere com
-   `show`, faz commit e push. Quando o site republica, o app baixa a versão nova na
-   próxima abertura com internet.
-2. **Pelo app, com um token do GitHub** (opcional, em Configurações). Com o token,
+1. **Pelo Claude, a partir de prints.** Você manda o print da XP (cotações, boleta de
+   compra ou venda, posição consolidada) numa sessão do Claude Code neste repositório. Ele
+   lê a imagem, roda `orihuela/tools/cli.js`, confere com `show`, faz commit e push.
+   Quando o site republica, o app baixa a versão nova na próxima abertura com internet.
+2. **Pelo próprio app, lendo o print no celular** (Ajustes → Leitura de prints). O botão
+   da câmera manda a imagem para a API da Anthropic e abre a tela de conferência; o que
+   você aplicar vira edição local, igual a qualquer outra feita no app.
+3. **Pelo app, com um token do GitHub** (opcional, em Configurações). Com o token,
    cada edição feita no celular é gravada direto em `data.json` no branch configurado.
    Sem token, as edições ficam só no aparelho; use "Compartilhar JSON" ou "Copiar JSON"
    para mandar o conteúdo ao Claude, que grava no repositório.
@@ -139,7 +168,12 @@ adicione de novo pelo Safari.
 O app pede um PIN ao abrir e ao voltar depois de 2 minutos em segundo plano. É um
 bloqueio de tela do aparelho, nada mais: `data.json` fica em um site público, então use
 apenas apelidos e nunca o nome completo dos clientes. "Esqueci o PIN" apaga os dados
-locais e o token; o arquivo do servidor não é afetado.
+locais, o token do GitHub e a chave da IA; o arquivo do servidor não é afetado.
+
+Os prints mandados para a leitura pela IA saem do aparelho com nome, CPF e número de
+conta se eles estiverem na imagem. O que volta é filtrado (a IA é instruída a devolver no
+máximo o primeiro nome), e nada disso entra no `data.json`, mas a imagem em si trafega
+inteira. Para carteiras em que isso importe, corte o cabeçalho do print antes de enviar.
 
 ## CLI (usado pelo Claude nas sessões)
 

@@ -91,6 +91,17 @@ preço da cotação como custo (lucro zero) e diga na resposta o que ficou pende
 caso de fundo imobiliário com preço médio "Indefinido" e de posição alugada em tela que
 não mostra o custo.
 
+## O app também lê prints sozinho
+
+Desde a versão 1.4.0 o celular faz essa leitura por conta própria: o botão da câmera na
+tela inicial manda a imagem para a API da Anthropic e abre uma tela de conferência. Se a
+pessoa disser que já aplicou algo por lá, os dados chegam pelo `data.json` como qualquer
+edição feita no app, e você não precisa lançar de novo — confira com `show` antes.
+
+Você continua sendo o caminho quando a leitura exige julgamento: cruzar uma nota de
+negociação com o preço médio já embutido no print da carteira, decidir qual de dois prints
+do mesmo dia prevalece, ou explicar uma diferença entre o cabeçalho e as linhas.
+
 ## Privacidade
 
 O site é público. Use só apelidos, nunca o nome completo do cliente. Prints e notas

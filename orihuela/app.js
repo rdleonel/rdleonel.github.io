@@ -2,11 +2,13 @@
 (function () {
   'use strict';
   const C = window.OrihuelaCore;
-  const APP_VERSION = '1.3.0';
-  const LS = { state: 'orihuela.state', pin: 'orihuela.pin', gh: 'orihuela.gh', ui: 'orihuela.ui', qp: 'orihuela.quotes' };
+  const APP_VERSION = '1.4.0';
+  const LS = { state: 'orihuela.state', pin: 'orihuela.pin', gh: 'orihuela.gh', ui: 'orihuela.ui', qp: 'orihuela.quotes', ai: 'orihuela.ai' };
   const DEFAULT_GH = { owner: 'rdleonel', repo: 'rdleonel.github.io', branch: 'main', path: 'orihuela/data.json', token: '' };
   // Serviço de cotações. {TICKERS} e {TOKEN} são trocados na hora da busca.
   const DEFAULT_QP = { url: 'https://brapi.dev/api/quote/{TICKERS}?token={TOKEN}', token: '', sep: ',', auth: '', batch: 20 };
+  // Leitura de prints: a API de mensagens da Anthropic, chamada direto do navegador.
+  const DEFAULT_AI = { url: 'https://api.anthropic.com/v1/messages', key: '', model: 'claude-opus-5-5' };
   const LOCK_AFTER_MS = 2 * 60 * 1000;
 
   // ---------- armazenamento ----------
@@ -18,6 +20,7 @@
   if (state.data) state.data = C.normalize(state.data);
   let gh = Object.assign({}, DEFAULT_GH, load(LS.gh) || {});
   let qp = Object.assign({}, DEFAULT_QP, load(LS.qp) || {});
+  let ai = Object.assign({}, DEFAULT_AI, load(LS.ai) || {});
   let ui = Object.assign({ chart: { total: true, ret: true }, perfSort: 'name' }, load(LS.ui) || {});
   let pendingRemote = null;   // versão do servidor que conflita com edições locais
   let syncStatus = 'idle';    // idle | syncing | offline | error | ok
@@ -99,7 +102,7 @@
       .concat(ICONS[name].map(d => svgEl('path', { d }))));
   }
   // A carteira de um cliente é filha da aba Clientes; tocar nela volta para a lista.
-  function activeTab(routeName) { return routeName === 'client' ? 'clients' : routeName; }
+  function activeTab(routeName) { return routeName === 'client' ? 'clients' : routeName === 'read' ? 'home' : routeName; }
   function renderTabbar(routeName) {
     const bar = $('#tabbar');
     bar.innerHTML = '';
@@ -151,6 +154,7 @@
   function goBack() {
     const r = route();
     if (r.name === 'client') go('#/clients');
+    else if (r.name === 'read') go(r.id ? '#/client/' + encodeURIComponent(r.id) : '#/');
     else if (r.name !== 'home') go('#/');
   }
   let swipeX = null, swipeY = null;
@@ -200,6 +204,7 @@
         if (!c) { go('#/clients'); return; }
         setHeader(c.name, 'carteira'); viewClient(view, c); break;
       }
+      case 'read': setHeader('Ler print', 'posições, operações e cotações'); viewRead(view, r.id); break;
       case 'performance': setHeader('Desempenho'); viewPerformance(view); break;
       case 'settings': setHeader('Ajustes'); viewSettings(view); break;
       default: setHeader('Orihuela Consulting', 'carteiras · XP'); viewHome(view);
@@ -271,7 +276,7 @@
     // Atualizar cotações é o que mais se faz: fica sempre no rodapé, ao alcance do polegar.
     setActionBar(actionRow(
       h('button', { class: 'btn primary grow', text: 'Atualizar cotações', onClick: () => startQuotesUpdate() }),
-      h('button', { class: 'btn', style: 'width:56px;flex:none', 'aria-label': 'Atualizar usando um print', onClick: () => { quotesEditing = true; go('#/quotes'); pickShot(); } },
+      h('button', { class: 'btn', style: 'width:56px;flex:none', 'aria-label': 'Ler um print', onClick: () => startRead(null) },
         svgEl('svg', { viewBox: '0 0 24 24', class: 'ic24' },
           svgEl('rect', { x: 3, y: 5, width: 18, height: 14, rx: 2 }),
           svgEl('circle', { cx: 8.5, cy: 10, r: 1.6 }),
@@ -585,6 +590,509 @@
     });
   }
 
+  // ---------- LEITURA DE PRINTS PELA IA ----------
+  // Os prints vão para a API de mensagens da Anthropic, que devolve posições, operações e
+  // cotações em JSON. Nada entra na carteira direto: tudo passa pela tela de conferência,
+  // onde cada linha tem caixa de seleção e campos editáveis. A chave fica só no aparelho.
+  const AI_MAX_EDGE = 1568;   // acima disso a API reduz a imagem de qualquer jeito
+  const AI_MAX_SHOTS = 5;
+
+  const AI_NUM = { anyOf: [{ type: 'number' }, { type: 'null' }] };
+  const AI_STR = { anyOf: [{ type: 'string' }, { type: 'null' }] };
+  const AI_SCHEMA = {
+    type: 'object', additionalProperties: false,
+    required: ['kind', 'date', 'client', 'positions', 'trades', 'quotes', 'note'],
+    properties: {
+      kind: { type: 'string', enum: ['carteira', 'custodia', 'cotacoes', 'nota', 'outro'] },
+      date: AI_STR,
+      client: AI_STR,
+      positions: {
+        type: 'array',
+        items: {
+          type: 'object', additionalProperties: false,
+          required: ['ticker', 'qty', 'avgPrice', 'price'],
+          properties: { ticker: { type: 'string' }, qty: { type: 'number' }, avgPrice: AI_NUM, price: AI_NUM }
+        }
+      },
+      trades: {
+        type: 'array',
+        items: {
+          type: 'object', additionalProperties: false,
+          required: ['side', 'ticker', 'qty', 'price', 'date'],
+          properties: {
+            side: { type: 'string', enum: ['buy', 'sell', 'short'] },
+            ticker: { type: 'string' }, qty: { type: 'number' }, price: { type: 'number' }, date: AI_STR
+          }
+        }
+      },
+      quotes: {
+        type: 'array',
+        items: { type: 'object', additionalProperties: false, required: ['ticker', 'price'], properties: { ticker: { type: 'string' }, price: { type: 'number' } } }
+      },
+      note: { type: 'string' }
+    }
+  };
+
+  const AI_SYSTEM = [
+    'Você lê prints da corretora XP (em português do Brasil) e devolve os dados em JSON.',
+    '',
+    'Números: o print usa vírgula decimal e ponto de milhar. "1.234,56" é mil duzentos e trinta e quatro vírgula cinquenta e seis.',
+    'No JSON devolva número puro (1234.56), nunca texto.',
+    '',
+    'Classifique o conjunto de imagens em kind:',
+    '- "carteira": posição consolidada, com ticker, quantidade, preço médio e preço atual. Preencha positions.',
+    '- "custodia": lista de ativos e quantidades, sem preço médio. Preencha positions com avgPrice null.',
+    '- "cotacoes": tela de preços. Preencha quotes.',
+    '- "nota": nota de negociação ou boleta. Preencha trades.',
+    '- "outro": não reconheceu. Deixe tudo vazio e explique em note.',
+    'Um mesmo conjunto pode render mais de uma lista; preencha todas que a imagem sustentar.',
+    '',
+    'Posição vendida: linha marcada "Aluguel - Tomador", "Vendido", "Doador/Tomador" ou com quantidade negativa.',
+    'Devolva qty negativo nesse caso. Posição comprada é sempre positiva.',
+    '',
+    'Preço médio preciso: a XP arredonda o preço médio em 2 casas, o que erra o resultado em alguns reais.',
+    'Quando o print mostrar o valor da posição e o resultado em reais, calcule',
+    'avgPrice = (valor da posição − resultado) ÷ quantidade e devolva com 5 ou 6 casas decimais.',
+    'Quando mostrar só a rentabilidade em porcentagem, escolha dentro da faixa o preço que reproduz',
+    'ao mesmo tempo o preço médio exibido e a porcentagem exibida.',
+    '',
+    'Nunca invente. Preço médio "Indefinido", coluna cortada ou valor ilegível viram null, e você diz em note o que faltou.',
+    'Não arredonde para um número "bonito" nem complete uma linha parcialmente visível.',
+    '',
+    'Privacidade: o arquivo deste app é público. Em client devolva no máximo o primeiro nome ou apelido,',
+    'e nunca nome completo, CPF, número de conta ou agência. Não repita esses dados em note.',
+    '',
+    'date é a data do print no formato AAAA-MM-DD, ou null se não estiver visível.',
+    'note é uma frase curta em português dizendo o que você leu e o que ficou em dúvida.'
+  ].join('\n');
+
+  const AI_USER = [
+    'Leia estes prints da XP e devolva o JSON no formato pedido.',
+    'Se forem várias imagens do mesmo cliente, junte tudo numa lista só, sem repetir o mesmo ticker.'
+  ].join(' ');
+
+  function aiReady() { return !!(ai.key && ai.url); }
+  function aiHeaders() {
+    return {
+      'content-type': 'application/json',
+      'x-api-key': ai.key,
+      'anthropic-version': '2023-06-01',
+      // sem este cabeçalho a API recusa a chamada feita de dentro de uma página
+      'anthropic-dangerous-direct-browser-access': 'true'
+    };
+  }
+  // Uma chamada à API, com o erro traduzido para quem está olhando a tela do celular.
+  async function aiCall(body, signal) {
+    let res;
+    try {
+      res = await fetch(ai.url, { method: 'POST', headers: aiHeaders(), body: JSON.stringify(body), signal });
+    } catch (e) {
+      if (e && e.name === 'AbortError') throw e;
+      throw new Error('o serviço não respondeu. Verifique a conexão.');
+    }
+    if (!res.ok) {
+      let detail = '';
+      try { const j = await res.json(); detail = (j && j.error && j.error.message) || ''; } catch (e) { }
+      if (res.status === 401 || res.status === 403) throw new Error('chave recusada (' + res.status + '). Confira a chave em Ajustes.');
+      if (res.status === 429) throw new Error('limite de uso atingido. Tente de novo em alguns minutos.');
+      if (res.status === 400 && /credit|balance|saldo/i.test(detail)) throw new Error('a conta da API está sem crédito.');
+      const err = new Error('a API respondeu ' + res.status + (detail ? ': ' + detail : ''));
+      err.status = res.status; err.detail = detail;
+      throw err;
+    }
+    return res.json();
+  }
+  // Primeiro bloco de texto da resposta, já sem cercas de código.
+  function aiText(msg) {
+    const blocks = (msg && msg.content) || [];
+    for (let i = 0; i < blocks.length; i++) {
+      if (blocks[i] && blocks[i].type === 'text' && String(blocks[i].text || '').trim()) return String(blocks[i].text);
+    }
+    return '';
+  }
+  function parseAIJson(text) {
+    let t = String(text || '').trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+    try { return JSON.parse(t); } catch (e) { }
+    const a = t.indexOf('{'), b = t.lastIndexOf('}');
+    if (a >= 0 && b > a) { try { return JSON.parse(t.slice(a, b + 1)); } catch (e) { } }
+    throw new Error('a resposta não veio em JSON.');
+  }
+  async function readShots(payloads, signal) {
+    const content = payloads.map(p => ({ type: 'image', source: { type: 'base64', media_type: p.media_type, data: p.data } }));
+    content.push({ type: 'text', text: AI_USER });
+    const body = {
+      model: ai.model || DEFAULT_AI.model,
+      max_tokens: 12000,
+      system: AI_SYSTEM,
+      output_config: { effort: 'medium', format: { type: 'json_schema', schema: AI_SCHEMA } },
+      messages: [{ role: 'user', content }]
+    };
+    let msg;
+    try { msg = await aiCall(body, signal); }
+    catch (e) {
+      // modelo antigo sem saída estruturada: repete pedindo o JSON no texto
+      if (e.status === 400 && /output_config|json_schema|schema|format/i.test(e.detail || '')) {
+        delete body.output_config;
+        body.system = AI_SYSTEM + '\n\nResponda apenas com o objeto JSON, sem comentários nem cercas de código.';
+        msg = await aiCall(body, signal);
+      } else throw e;
+    }
+    if (msg && msg.stop_reason === 'refusal') throw new Error('o modelo recusou ler esta imagem.');
+    const parsed = parseAIJson(aiText(msg));
+    if (msg && msg.stop_reason === 'max_tokens') parsed.note = (parsed.note || '') + ' (resposta cortada por tamanho: confira se faltou linha)';
+    return parsed;
+  }
+
+  // ----- imagens -----
+  function pickImages(cb) {
+    const inp = h('input', { type: 'file', accept: 'image/*', multiple: true, style: 'display:none' });
+    document.body.appendChild(inp);
+    inp.addEventListener('change', () => {
+      const files = Array.prototype.slice.call(inp.files || []);
+      inp.remove();
+      if (files.length) cb(files);
+    });
+    inp.click();
+  }
+  function loadImage(file) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => resolve({ img, url });
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('não foi possível abrir ' + (file.name || 'a imagem'))); };
+      img.src = url;
+    });
+  }
+  // Reduz o print antes de enviar: um screenshot de iPhone tem o dobro do que a API aproveita.
+  function toJpeg(img, maxEdge) {
+    const long = Math.max(img.naturalWidth || img.width, img.naturalHeight || img.height) || 1;
+    const scale = Math.min(1, maxEdge / long);
+    const w = Math.max(1, Math.round((img.naturalWidth || img.width) * scale));
+    const h = Math.max(1, Math.round((img.naturalHeight || img.height) * scale));
+    const cv = document.createElement('canvas');
+    cv.width = w; cv.height = h;
+    const ctx = cv.getContext('2d');
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(img, 0, 0, w, h);
+    const url = cv.toDataURL('image/jpeg', 0.92);
+    return { media_type: 'image/jpeg', data: url.slice(url.indexOf(',') + 1), w, h };
+  }
+
+  // ----- tela -----
+  let readState = null;
+  function newReadState(clientId) {
+    return {
+      stage: 'pick', shots: [], clientId: clientId || null, newName: '',
+      items: [], note: '', kind: '', date: C.localDateISO(), snap: true, err: '', busy: ''
+    };
+  }
+  function startRead(clientId) {
+    clearRead();
+    readState = newReadState(clientId);
+    go(clientId ? '#/read/' + encodeURIComponent(clientId) : '#/read');
+    render();
+  }
+  function clearRead() {
+    if (readState) {
+      readState.shots.forEach(s => { try { URL.revokeObjectURL(s.url); } catch (e) { } });
+      if (readState.abort) { try { readState.abort.abort(); } catch (e) { } }
+    }
+    readState = null;
+  }
+  function endRead(clientId) {
+    clearRead();
+    go(clientId ? '#/client/' + encodeURIComponent(clientId) : '#/');
+  }
+
+  async function addShots(files) {
+    const room = AI_MAX_SHOTS - readState.shots.length;
+    if (room <= 0) { readState.err = 'No máximo ' + AI_MAX_SHOTS + ' imagens por leitura.'; render(); return; }
+    readState.busy = 'Preparando as imagens…'; readState.err = ''; render();
+    for (const f of files.slice(0, room)) {
+      try {
+        const { img, url } = await loadImage(f);
+        readState.shots.push(Object.assign({ url, name: f.name || 'print' }, toJpeg(img, AI_MAX_EDGE)));
+      } catch (e) { readState.err = e.message; }
+    }
+    readState.busy = '';
+    render();
+  }
+  async function runRead() {
+    if (!aiReady()) { readState.err = 'Configure a chave da API em Ajustes.'; render(); return; }
+    if (!readState.shots.length) { readState.err = 'Escolha ao menos um print.'; render(); return; }
+    readState.stage = 'reading'; readState.err = ''; readState.abort = new AbortController();
+    render();
+    try {
+      const out = await readShots(readState.shots.map(s => ({ media_type: s.media_type, data: s.data })), readState.abort.signal);
+      readState.abort = null;
+      readState.kind = out.kind || '';
+      readState.note = out.note || '';
+      if (C.isISODate(out.date)) readState.date = out.date;
+      readState.items = buildItems(out);
+      if (!readState.clientId) readState.clientId = guessClient(out.client);
+      readState.stage = 'review';
+      if (!readState.items.length) readState.err = 'Nada reconhecido nesta imagem.';
+    } catch (e) {
+      readState.abort = null;
+      if (e && e.name === 'AbortError') { readState.stage = 'pick'; render(); return; }
+      readState.stage = 'pick';
+      readState.err = 'Falha ao ler: ' + e.message;
+    }
+    render();
+  }
+  function guessClient(name) {
+    if (!name) return null;
+    const c = C.findClient(state.data, String(name).trim());
+    return c ? c.id : null;
+  }
+  function buildItems(out) {
+    const items = [];
+    (out.positions || []).forEach(p => {
+      const ticker = C.normTicker(p.ticker);
+      if (!ticker || !Number.isFinite(p.qty) || p.qty === 0) return;
+      items.push({ kind: 'position', on: true, ticker, qty: p.qty, avgPrice: Number.isFinite(p.avgPrice) ? p.avgPrice : null, price: Number.isFinite(p.price) ? p.price : null });
+    });
+    (out.trades || []).forEach(t => {
+      const ticker = C.normTicker(t.ticker);
+      if (!ticker || !(t.qty > 0) || !(t.price >= 0)) return;
+      items.push({ kind: 'trade', on: true, side: C.TRADE_TYPES[t.side] ? t.side : 'buy', ticker, qty: t.qty, price: t.price, date: C.isISODate(t.date) ? t.date : null });
+    });
+    (out.quotes || []).forEach(q => {
+      const ticker = C.normTicker(q.ticker);
+      if (!ticker || !(q.price > 0)) return;
+      items.push({ kind: 'quote', on: true, ticker, price: q.price });
+    });
+    // A carteira já traz o preço atual de cada papel: vira cotação, sem linha repetida.
+    items.filter(i => i.kind === 'position' && Number.isFinite(i.price)).forEach(p => {
+      if (items.some(i => i.kind === 'quote' && i.ticker === p.ticker)) return;
+      items.push({ kind: 'quote', on: true, ticker: p.ticker, price: p.price, fromPosition: true });
+    });
+    return items;
+  }
+
+  function numField(label, item, key, hint) {
+    const inp = h('input', {
+      type: 'text', inputmode: 'decimal',
+      value: item[key] == null ? '' : C.fmtNum(item[key]),
+      placeholder: item[key] == null ? 'sem valor' : ''
+    });
+    inp.addEventListener('focus', () => inp.select());
+    inp.addEventListener('input', () => {
+      const raw = inp.value.trim();
+      item[key] = raw === '' ? null : C.parseNum(raw); // NaN marca inválido, barrado ao aplicar
+    });
+    return h('div', { class: 'field' }, h('label', { text: label }), inp, hint ? h('div', { class: 'hint', text: hint }) : null);
+  }
+  function readRow(item, cli) {
+    const chk = h('input', { type: 'checkbox', checked: item.on });
+    chk.addEventListener('change', () => { item.on = chk.checked; box.classList.toggle('off', !item.on); });
+    let title, sub, fields;
+    if (item.kind === 'position') {
+      const cur = cli && cli.positions.find(p => p.ticker === item.ticker);
+      title = item.ticker + (item.qty < 0 ? ' (vendida)' : '');
+      sub = item.avgPrice == null ? 'preço médio não veio no print: vale o da cotação, lucro zero'
+        : cur ? 'hoje: ' + C.fmtInt(cur.qty) + ' cotas, PM ' + C.fmtNum(cur.avgPrice) : 'nova na carteira';
+      fields = [numField('Cotas', item, 'qty'), numField('Preço médio', item, 'avgPrice')];
+    } else if (item.kind === 'trade') {
+      const sel = h('select', {}, ['buy', 'sell', 'short'].map(k => h('option', { value: k, text: C.TX_TYPES[k], selected: k === item.side })));
+      sel.addEventListener('change', () => { item.side = sel.value; });
+      const dt = h('input', { type: 'date', value: item.date || readState.date });
+      dt.addEventListener('change', () => { item.date = dt.value; });
+      title = C.TX_TYPES[item.side] + ' · ' + item.ticker;
+      sub = 'altera posição e caixa';
+      fields = [
+        h('div', { class: 'field' }, h('label', { text: 'Tipo' }), sel),
+        h('div', { class: 'field' }, h('label', { text: 'Data' }), dt),
+        numField('Quantidade', item, 'qty'),
+        numField('Preço', item, 'price')
+      ];
+    } else {
+      const q = state.data.quotes[item.ticker];
+      title = item.ticker;
+      sub = (q ? 'antes ' + C.fmtNum(q.price) : 'sem cotação ainda') + (item.fromPosition ? ' · preço atual do print da carteira' : '');
+      fields = [numField('Cotação', item, 'price')];
+    }
+    const box = h('div', { class: 'read-item' + (item.on ? '' : ' off') },
+      h('div', { class: 'head' }, chk, h('div', { class: 'tk' }, title, h('small', { text: sub }))),
+      h('div', { class: 'grid' }, fields));
+    return box;
+  }
+
+  function viewRead(view, clientId) {
+    if (!readState) readState = newReadState(clientId);
+    if (clientId && !readState.clientId) readState.clientId = clientId;
+    const back = () => endRead(readState.clientId);
+
+    if (readState.err) view.appendChild(h('div', { class: 'banner' }, h('p', { text: readState.err })));
+
+    if (readState.stage === 'reading') {
+      view.appendChild(h('div', { class: 'card' },
+        h('div', { class: 'empty', text: 'Lendo ' + readState.shots.length + (readState.shots.length === 1 ? ' print…' : ' prints…') }),
+        h('p', { class: 'small muted', text: 'Costuma levar de dez a trinta segundos. Nada é gravado antes da sua conferência.' })));
+      setActionBar(actionRow(h('button', { class: 'btn grow', text: 'Cancelar', onClick: () => { if (readState.abort) readState.abort.abort(); } })));
+      return;
+    }
+
+    if (readState.stage === 'review') return viewReadReview(view);
+
+    // ----- escolher as imagens -----
+    if (!aiReady()) {
+      view.appendChild(h('div', { class: 'banner' },
+        h('p', { text: 'Para a IA ler os prints falta a chave da API da Anthropic. Ela fica só neste aparelho.' }),
+        h('div', { class: 'btn-row' },
+          h('button', { class: 'btn sm primary', text: 'Configurar agora', onClick: () => go('#/settings') }),
+          h('button', { class: 'btn sm', text: 'Conferir cotações à mão', onClick: () => { clearRead(); quotesEditing = true; go('#/quotes'); pickShot(); } }))));
+    }
+
+    view.appendChild(h('div', { class: 'card' },
+      h('h2', { text: 'Como funciona' }),
+      h('p', { class: 'small dim', text: 'Escolha os prints da XP (carteira, custódia, cotações ou nota de negociação). A IA lê as imagens e devolve as linhas preenchidas. Você confere, corrige o que quiser e só então aplica na carteira.' })));
+
+    if (readState.shots.length) {
+      const grid = h('div', { class: 'shot-grid' });
+      readState.shots.forEach((s, i) => grid.appendChild(h('div', { class: 'shot-thumb' },
+        h('img', { src: s.url, alt: s.name }),
+        h('button', { class: 'x', text: '×', 'aria-label': 'Remover imagem', onClick: () => {
+          try { URL.revokeObjectURL(s.url); } catch (e) { }
+          readState.shots.splice(i, 1); render();
+        } }),
+        h('span', { class: 'px', text: s.w + '×' + s.h }))));
+      view.appendChild(h('div', { class: 'card' }, h('h2', { text: readState.shots.length + (readState.shots.length === 1 ? ' imagem' : ' imagens') }), grid));
+    }
+
+    const cli = readState.clientId && state.data.clients.find(c => c.id === readState.clientId);
+    if (cli) view.appendChild(h('p', { class: 'small muted', text: 'Cliente: ' + cli.name + '. Dá para trocar depois, na conferência.' }));
+
+    setActionBar([
+      actionRow(
+        h('button', { class: 'btn grow', text: readState.shots.length ? '+ Mais prints' : 'Escolher prints', disabled: !!readState.busy, onClick: () => pickImages(addShots) }),
+        h('button', { class: 'btn primary grow', text: readState.busy || 'Ler com a IA', disabled: !readState.shots.length || !!readState.busy, onClick: runRead })),
+      actionRow(h('button', { class: 'btn grow', text: 'Voltar', onClick: back }))
+    ]);
+  }
+
+  function viewReadReview(view) {
+    const d = state.data;
+    const items = readState.items;
+    const positions = items.filter(i => i.kind === 'position');
+    const trades = items.filter(i => i.kind === 'trade');
+    const quotes = items.filter(i => i.kind === 'quote');
+    const needsClient = positions.length > 0 || trades.length > 0;
+
+    if (readState.note) view.appendChild(h('div', { class: 'card' },
+      h('h2', { text: 'O que a IA leu' }),
+      h('p', { class: 'small dim', text: (readState.kind ? readState.kind + ' · ' : '') + readState.note })));
+
+    // cliente
+    let cli = d.clients.find(c => c.id === readState.clientId) || null;
+    const nameInp = h('input', { type: 'text', value: readState.newName, placeholder: 'Nome ou apelido' });
+    nameInp.addEventListener('input', () => { readState.newName = nameInp.value; });
+    const nameWrap = h('div', { class: 'field' + (readState.clientId === '__new__' ? '' : ' hidden') }, h('label', { text: 'Nome do novo cliente' }), nameInp);
+    if (needsClient) {
+      const sel = h('select', {},
+        h('option', { value: '', text: '— escolha o cliente —', selected: !readState.clientId }),
+        d.clients.slice().sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map(c => h('option', { value: c.id, text: c.name, selected: c.id === readState.clientId })),
+        h('option', { value: '__new__', text: '+ Criar novo cliente', selected: readState.clientId === '__new__' }));
+      sel.addEventListener('change', () => {
+        readState.clientId = sel.value || null;
+        nameWrap.classList.toggle('hidden', sel.value !== '__new__');
+        cli = d.clients.find(c => c.id === readState.clientId) || null;
+      });
+      view.appendChild(h('div', { class: 'card' }, h('h2', { text: 'Cliente' }),
+        h('div', { class: 'field' }, h('label', { text: 'Aplicar em' }), sel), nameWrap));
+    }
+
+    const section = (title, hint, list) => {
+      if (!list.length) return;
+      const card = h('div', { class: 'card tight' });
+      card.appendChild(h('div', { class: 'card-head', style: 'padding:12px 14px 0' }, h('h2', { text: title + ' (' + list.length + ')' })));
+      if (hint) card.appendChild(h('p', { class: 'small muted', style: 'padding:0 14px 6px', text: hint }));
+      list.forEach(i => card.appendChild(readRow(i, cli)));
+      view.appendChild(card);
+    };
+    section('Posições', 'Substituem cotas e preço médio do papel na carteira, sem mexer no caixa. Cotas negativas são posição vendida.', positions);
+    section('Operações', 'Lançadas como compra, venda ou venda a descoberto: alteram posição e caixa, e a venda calcula o resultado.', trades);
+    section('Cotações', 'Valem para todos os clientes que têm o papel.', quotes);
+
+    // papéis que o cliente tem e não apareceram no print
+    if (cli && positions.length) {
+      const seen = new Set(positions.filter(p => p.on).map(p => p.ticker));
+      const fora = cli.positions.filter(p => !seen.has(p.ticker)).map(p => p.ticker);
+      if (fora.length) view.appendChild(h('p', { class: 'small muted', text: 'Continuam na carteira, sem alteração (não apareceram no print): ' + fora.join(', ') + '.' }));
+    }
+
+    const dateInp = h('input', { type: 'date', value: readState.date });
+    dateInp.addEventListener('change', () => { readState.date = dateInp.value; });
+    const snapChk = h('input', { type: 'checkbox', checked: readState.snap });
+    snapChk.addEventListener('change', () => { readState.snap = snapChk.checked; });
+    const err = h('div', { class: 'form-error' });
+    setActionBar([
+      h('div', { class: 'row' }, h('div', { class: 'field inline' }, snapChk, h('label', { text: 'Registrar ponto em' })), dateInp),
+      err,
+      h('div', { class: 'row' },
+        h('button', { class: 'btn', style: 'flex:1', text: 'Descartar', onClick: () => endRead(readState.clientId) }),
+        h('button', { class: 'btn primary', style: 'flex:2', text: 'Aplicar', onClick: () => applyRead(err) }))
+    ]);
+  }
+
+  function applyRead(err) {
+    err.textContent = '';
+    const items = readState.items.filter(i => i.on);
+    if (!items.length) { err.textContent = 'Nenhuma linha selecionada.'; return; }
+    const bad = items.filter(i =>
+      (i.kind === 'position' && (!Number.isFinite(i.qty) || i.qty === 0 || (i.avgPrice != null && !Number.isFinite(i.avgPrice)))) ||
+      (i.kind === 'trade' && (!(i.qty > 0) || !Number.isFinite(i.price))) ||
+      (i.kind === 'quote' && !(i.price > 0)));
+    if (bad.length) { err.textContent = 'Valor inválido em: ' + bad.map(i => i.ticker).join(', '); return; }
+
+    const needsClient = items.some(i => i.kind === 'position' || i.kind === 'trade');
+    let client = state.data.clients.find(c => c.id === readState.clientId) || null;
+    if (needsClient && !client) {
+      if (readState.clientId !== '__new__') { err.textContent = 'Escolha o cliente.'; return; }
+      if (!readState.newName.trim()) { err.textContent = 'Informe o nome do novo cliente.'; return; }
+    }
+
+    const date = C.isISODate(readState.date) ? readState.date : C.localDateISO();
+    const falhas = [];
+    let nPos = 0, nTx = 0, nQ = 0;
+    mutate(data => {
+      if (needsClient && !client) {
+        client = C.addClient(data, readState.newName.trim());
+        readState.clientId = client.id;
+      }
+      const qmap = {};
+      items.filter(i => i.kind === 'quote').forEach(i => { qmap[i.ticker] = i.price; nQ++; });
+      if (nQ) C.setQuotes(data, qmap, date === C.localDateISO() ? new Date().toISOString() : new Date(date + 'T12:00:00').toISOString());
+      items.filter(i => i.kind === 'position').forEach(i => {
+        // Sem preço médio no print (fundo imobiliário com PM "Indefinido", posição alugada):
+        // usa a cotação, que deixa o lucro zerado em vez de inventar um custo.
+        let avg = i.avgPrice;
+        if (avg == null) {
+          const atual = client.positions.find(p => p.ticker === i.ticker);
+          const cot = qmap[i.ticker] != null ? qmap[i.ticker] : (data.quotes[i.ticker] && data.quotes[i.ticker].price);
+          avg = Number.isFinite(cot) ? cot : (atual ? atual.avgPrice : 0);
+        }
+        try { C.setPosition(data, client, i.ticker, i.qty, avg); nPos++; }
+        catch (e) { falhas.push(i.ticker + ': ' + e.message); }
+      });
+      items.filter(i => i.kind === 'trade').forEach(i => {
+        try { C.applyTransaction(data, client, { type: i.side, date: i.date || date, ticker: i.ticker, qty: i.qty, price: i.price, note: 'lida de print' }); nTx++; }
+        catch (e) { falhas.push(i.ticker + ': ' + e.message); }
+      });
+      if (readState.snap) { if (nQ) C.snapshotAll(data, date); else if (client) C.snapshotClient(data, client, date); }
+    });
+
+    const partes = [];
+    if (nPos) partes.push(nPos + (nPos === 1 ? ' posição' : ' posições'));
+    if (nTx) partes.push(nTx + (nTx === 1 ? ' operação' : ' operações'));
+    if (nQ) partes.push(nQ + (nQ === 1 ? ' cotação' : ' cotações'));
+    const alvo = client ? client.id : null;
+    clearRead();
+    go(alvo ? '#/client/' + encodeURIComponent(alvo) : '#/quotes');
+    if (falhas.length) toast(partes.join(', ') + '. Não entraram: ' + falhas.join(' · '), true);
+    else toast(partes.join(', ') + ' aplicadas.');
+  }
+
   // ---------- CLIENTES ----------
   function viewClients(view) {
     const d = state.data;
@@ -736,6 +1244,7 @@
       h('span', {}, label, sub ? h('span', { class: 'sub', text: sub }) : null));
     openModal(c.name, [
       h('div', { class: 'sheet-menu' },
+        item('⌁', 'Ler print da carteira', 'a IA lê a imagem e preenche posições e operações', () => startRead(c.id)),
         item('＋', 'Adicionar ação', 'cotas e preço médio, sem mexer no caixa', () => positionDialog(c, null)),
         item('✎', 'Editar cliente', 'nome, caixa, capital e base do bônus', () => editClientDialog(c)),
         item('◉', 'Registrar ponto agora', 'novo ponto no gráfico com a data de hoje', () => { mutate(data => C.snapshotClient(data, c)); toast('Ponto de hoje registrado.'); }),
@@ -961,6 +1470,36 @@
         } catch (err) { qMsg.textContent = 'Falha: ' + err.message; }
       } })));
     view.appendChild(qCard);
+
+    // Leitura de prints pela IA
+    const a = {};
+    const aCard = h('div', { class: 'card' }, h('h2', { text: 'Leitura de prints (IA)' }),
+      h('p', { class: 'small dim', style: 'margin-bottom:10px', text: 'Com uma chave da API da Anthropic, o botão da câmera na tela inicial manda o print para a IA, que devolve posições, operações e cotações já preenchidas para você conferir. Crie a chave em console.anthropic.com (a cobrança é por uso: cada leitura custa alguns centavos). A chave fica apenas neste aparelho e as imagens vão direto do celular para a API, sem passar por nenhum servidor deste app.' }));
+    a.key = h('input', { type: 'password', value: ai.key, placeholder: 'sk-ant-…', autocapitalize: 'off', autocorrect: 'off', spellcheck: false });
+    aCard.appendChild(h('div', { class: 'field' }, h('label', { text: 'Chave da API' }), a.key));
+    a.model = h('input', { type: 'text', value: ai.model, autocapitalize: 'off', autocorrect: 'off', spellcheck: false });
+    aCard.appendChild(h('div', { class: 'field' }, h('label', { text: 'Modelo' }), a.model,
+      h('div', { class: 'hint', text: 'Padrão: ' + DEFAULT_AI.model + '. Um modelo menor sai mais barato e erra mais em print apertado.' })));
+    a.url = h('input', { type: 'text', value: ai.url, autocapitalize: 'off', autocorrect: 'off', spellcheck: false });
+    aCard.appendChild(h('div', { class: 'field' }, h('label', { text: 'Endereço' }), a.url));
+    const aMsg = h('div', { class: 'form-error' });
+    aCard.appendChild(aMsg);
+    aCard.appendChild(h('div', { class: 'btn-row', style: 'margin:0' },
+      h('button', { class: 'btn primary', text: 'Salvar', onClick: () => {
+        ai.key = a.key.value.trim(); ai.model = a.model.value.trim() || DEFAULT_AI.model; ai.url = a.url.value.trim() || DEFAULT_AI.url;
+        save(LS.ai, ai); toast('Leitura de prints salva.');
+      } }),
+      h('button', { class: 'btn', text: 'Testar', onClick: async () => {
+        ai.key = a.key.value.trim(); ai.model = a.model.value.trim() || DEFAULT_AI.model; ai.url = a.url.value.trim() || DEFAULT_AI.url;
+        if (!ai.key) { aMsg.textContent = 'Informe a chave.'; return; }
+        aMsg.textContent = 'Testando…';
+        try {
+          const r = await aiCall({ model: ai.model, max_tokens: 1000, output_config: { effort: 'low' }, messages: [{ role: 'user', content: 'Responda apenas: pronto' }] });
+          aMsg.textContent = '';
+          toast('Chave aceita pelo modelo ' + ((r && r.model) || ai.model) + '.');
+        } catch (e) { aMsg.textContent = 'Falha: ' + e.message; }
+      } })));
+    view.appendChild(aCard);
 
     // GitHub
     const f = {};
@@ -1442,8 +1981,8 @@
     });
     const forgot = mode === 'unlock' ? h('button', { class: 'forgot', text: 'Esqueci o PIN', onClick: async () => {
       done();
-      if (await confirmDialog('Redefinir o PIN apaga os dados locais e o token do GitHub deste aparelho. O arquivo no servidor não é afetado. Continuar?')) {
-        pinCfg.clear(); del(LS.state); del(LS.gh); location.reload();
+      if (await confirmDialog('Redefinir o PIN apaga os dados locais, o token do GitHub e a chave da IA deste aparelho. O arquivo no servidor não é afetado. Continuar?')) {
+        pinCfg.clear(); del(LS.state); del(LS.gh); del(LS.ai); location.reload();
       } else showLock('unlock');
     } }) : (mode === 'change' ? h('button', { class: 'forgot', text: 'Cancelar', onClick: done }) : null);
     root.appendChild(h('div', { class: 'lock' },

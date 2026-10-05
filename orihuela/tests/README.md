@@ -21,10 +21,12 @@ As capturas de tela vão para um diretório temporário, cujo caminho é impress
 | `e2e-func.js` | Cálculos pela interface: venda, recompra de posição vendida, erro de quantidade maior que a posição, renomear cliente, criar cliente, tela de desempenho |
 | `e2e-quotes.js` | Atualização de cotações: busca automática, anexar print fixo no topo, serviço fora do ar, resposta parcial, teste de conexão em Ajustes |
 | `e2e-batch.js` | Busca em lotes contra um serviço que limita papéis por chamada: o lote encolhe, a lista completa, o tamanho é lembrado, token inválido não vira 22 chamadas |
+| `e2e-read.js` | Leitura de prints pela IA: envio da imagem reduzida, conferência linha a linha, linha desmarcada não entra, preço médio de 5 casas preservado, posição vendida negativa, chave recusada e resposta sem JSON |
 | `e2e-update.js` | Atualização do app: aviso de versão nova, instalação, dados e PIN preservados, cache antigo removido |
 
 Os testes de cotações usam um serviço simulado (as chamadas a `brapi.dev` são
-interceptadas), então não dependem de rede nem de token.
+interceptadas), e o de leitura de prints intercepta `api.anthropic.com`, então nenhum
+deles depende de rede, de token ou de chave da API.
 
 ## Requisitos
 
