@@ -34,6 +34,16 @@ notas. Nada depende de uma conta específica do Claude nem do histórico de uma 
 Para continuar de outra conta, basta conectar o GitHub e abrir este repositório; a skill
 e este arquivo carregam sozinhos.
 
+## Leitura de prints dentro do app
+
+O botão **Print** na tela do cliente lê imagens da XP com a API da Anthropic (chamada
+direta do navegador, chave só no aparelho, cadastrada em Ajustes) e mostra uma lista
+editável para conferência antes de gravar. Duas leituras: Carteira (posição e preço médio)
+e Operação (boleta/nota). Código em `orihuela/vision.js` (partes puras, testadas em
+`orihuela/tests/unit-vision.js`) e `orihuela/app.js` (`printDialog`). Pela linha de comando
+e pelas sessões do Claude o fluxo continua o mesmo; não duplique regra de cálculo, o app
+só chama `applyTransaction` e `setPosition` do `core.js`.
+
 ## Estado atual e pendências (atualize ao fim de cada sessão)
 
 - Clientes: Nil (8 ativos; preços médios do print de 08/10/2026, refinados pela faixa que reproduz preço médio e rentabilidade; caixa R$ 3.307,90 (saldo disponível do print de 08/10); base de bônus R$ 700.000 em 31/01/2026, dia aproximado. IVVB11 vendida = −720 cotas (5 contratos de aluguel de tomador: 1+3+150+218+348, a R$ 440,37, vencimentos 03/11 e 09/11/2026, que o modelo não guarda), com custo provisório igual à cotação do app até chegar a nota; o print de Aluguel fecha com o total do patrimônio da XP: compradas R$ 998.134,32 − aluguel R$ 317.066,40 + caixa R$ 3.307,90 = R$ 684.375,82), Felipe (5 ativos), RD (16 ativos, carteira do próprio usuário, conferida

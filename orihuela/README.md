@@ -42,9 +42,42 @@ conferência, onde os preços podem chegar de três formas:
 Em qualquer caso nada é gravado antes de você tocar em **Salvar cotações**, e o mesmo
 toque registra um ponto no gráfico de todos os clientes na data escolhida.
 
-O app não lê o print sozinho: isso exigiria um serviço de visão e uma chave de API
-guardada no aparelho. Para extração automática a partir de imagens, o caminho continua
-sendo mandar o print numa sessão do Claude neste repositório.
+A leitura de preços por print continua manual (itens 2 e 3). Para ler **operações e
+posições** de um cliente por imagem, veja a próxima seção.
+
+## Ler print com IA (operações e carteira)
+
+Na tela de um cliente, o botão **📷 Print** (ou ••• → Ler print com IA) manda uma ou mais
+imagens da XP para a API da Anthropic, que devolve os dados em JSON. Há duas leituras:
+
+- **Carteira:** tela da carteira com cotas e preço médio. Atualiza as posições do cliente.
+  O preço médio é refinado quando o print traz o resultado em R$ ou a rentabilidade (a XP
+  arredonda a 2 casas). Papéis que não aparecem no print não são mexidos. Se a tela traz
+  preço médio "Indefinido", o app mantém o que já estava ou usa o preço atual (lucro zero)
+  e avisa que fica pendente.
+- **Operação:** boleta, nota de negociação ou ordem executada. Registra compra, venda e
+  venda a descoberto (aluguel) como operações, com o mesmo cálculo de preço médio, caixa e
+  resultado do botão Nova operação. Operações que já estão embutidas no preço médio da
+  carteira não devem ser lançadas de novo; o app avisa quando acha uma duplicada.
+
+Nada é gravado sem a sua conferência: depois da leitura aparece uma lista editável, uma
+linha por papel, com avisos (venda sem posição, quantidade × preço que não fecha com o
+total do print, preço longe da cotação, operação duplicada). Dá para corrigir qualquer
+valor ou desmarcar a linha. Ao tocar em **Aplicar**, tudo é testado num clone dos dados
+antes de gravar; se alguma linha falhar, nada muda. Cotações existentes nunca são
+alteradas por esta tela (só é criada a de um papel que ainda não tinha).
+
+Configuração (uma vez): Ajustes → Leitura de prints (IA) → cole uma chave da API da
+Anthropic (console.anthropic.com → API keys). A chamada sai direto do aparelho para
+`api.anthropic.com` com o cabeçalho `anthropic-dangerous-direct-browser-access`, então a
+chave fica só no aparelho (localStorage, como o token do GitHub) e não vai para o
+repositório. Use uma chave exclusiva para isto, com limite de gasto baixo. O modelo
+padrão é `claude-opus-5-5`; dá para trocar em Ajustes. A imagem é reduzida (lado maior de
+1600 px), enviada só para a leitura e não é guardada. Cubra nome, CPF e número da conta
+antes de enviar.
+
+O código está em `vision.js` (pedido, leitura da resposta, preço médio, plano de
+conferência; testado em `tests/unit-vision.js`) e `app.js` (tela de conferência).
 
 ## O que o app mostra
 
@@ -89,7 +122,8 @@ O arquivo `orihuela/data.json` é a fonte de verdade e fica no repositório. O a
 esse arquivo quando tem internet e guarda uma cópia local (localStorage) para uso
 off-line.
 
-Há duas formas de o arquivo ser alterado:
+Há duas formas de o arquivo ser alterado (e, em qualquer uma, o cliente também pode ser
+atualizado direto no app pelo botão Print, veja acima):
 
 1. **Pelo Claude, a partir de prints** (fluxo principal). Você manda o print da XP
    (cotações, boleta de compra ou venda, posição consolidada) numa sessão do Claude Code
