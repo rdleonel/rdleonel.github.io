@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-02T19:59:12.294Z",
+  "updatedAt": "2026-10-08T19:54:05.078Z",
   "quotes": {
     "INBR32": {
       "price": 27.48,
@@ -129,6 +129,10 @@
     "CVCB3": {
       "price": 1.61,
       "at": "2026-09-11T18:00:00.000Z"
+    },
+    "VULC3": {
+      "price": 15.42,
+      "at": "2026-10-08T19:52:09.087Z"
     }
   },
   "clients": [
@@ -423,8 +427,8 @@
     {
       "id": "c_mupz17opytzcs",
       "name": "Nil",
-      "cash": 201.23,
-      "capital": 570325.12,
+      "cash": 3307.9,
+      "capital": 472180.39,
       "bonusBase": {
         "value": 700000,
         "date": "2026-01-31"
@@ -433,48 +437,53 @@
         {
           "ticker": "MUTC34",
           "qty": 198,
-          "avgPrice": 948.07
+          "avgPrice": 764.12
         },
         {
           "ticker": "INBR32",
           "qty": 6745,
-          "avgPrice": 27.48
+          "avgPrice": 24.89965
         },
         {
           "ticker": "ROXO34",
           "qty": 16000,
-          "avgPrice": 11.48
+          "avgPrice": 11.25043
         },
         {
           "ticker": "DASA3",
           "qty": 40800,
-          "avgPrice": 3.93
+          "avgPrice": 3.12601
         },
         {
           "ticker": "PRIO3",
           "qty": 287,
-          "avgPrice": 61.46
+          "avgPrice": 48.38355
         },
         {
           "ticker": "BIDU34",
           "qty": 100,
-          "avgPrice": 31.9
+          "avgPrice": 49.44024
         },
         {
           "ticker": "IVVB11",
-          "qty": -371,
+          "qty": -720,
           "avgPrice": 452.29
+        },
+        {
+          "ticker": "VULC3",
+          "qty": 10000,
+          "avgPrice": 14.88992
         }
       ],
       "transactions": [],
       "history": [
         {
           "date": "2026-10-01",
-          "total": 570325.12,
-          "invested": 570123.89,
-          "cash": 201.23,
-          "capital": 570325.12,
-          "ret": 0
+          "total": 569782.58,
+          "invested": 468872.49,
+          "cash": 3307.9,
+          "capital": 472180.39,
+          "ret": 0.20670530175977886
         }
       ]
     }
