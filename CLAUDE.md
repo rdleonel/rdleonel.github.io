@@ -46,7 +46,7 @@ e este arquivo carregam sozinhos.
   e prevaleceu por ser o mais recente recebido. Confirmar com o usuário se estiver
   errado.
 - Cotações de 01/10/2026 (print de cotações da XP) atualizaram IVVB11, MUTC34, ROXO34, INBR32, PRIO3, BIDU34, M2RV34, DASA3, GOGL34, M1TA34 e BOVA11 e criaram um ponto de 01/10 para todos os clientes. Mudou bastante: Felipe de +25,85% para +49,30% (confira contra a XP).
-- Cliente P (29 posições, ~R$ 4,9 mi) está em rascunho local e ainda não foi publicado.
+- Cliente P (29 posições, caixa R$ 8.463,97, base de bônus R$ 6.805.000 em 31/01/2026, dia aproximado). Preços médios do print da carteira de 01/10/2026, refinados pela faixa que reproduz preço médio e rentabilidade. Pendentes: INBR32 (XP mostra preço médio "Indefinido", ficou igual à cotação) e as 7 posições vendidas (BOVA11, IVVB11, M1TA34, ITSA4, MOVI3, PRNR3, LREN3), todas com custo igual à cotação até chegar o print de Aluguel. ROXO34 = 188.140 cotas (confirmado pelo usuário; um print anterior mostrava 138.140). GMAT3, TSLA34, COGN3, JHSF3, HASH11 e ROMI3 seguem com cotação de 21/09 ou do print do Felipe.
 - Pendências de dados: saldo em caixa e base do último bônus (valor e data) dos três
   clientes; custo real de MAXR11, RNGO11 e XPCM11 no RD (a XP mostra preço médio
   "Indefinido", então estão com preço médio igual à cotação e lucro zero); BPAC11 e
