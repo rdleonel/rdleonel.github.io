@@ -36,7 +36,7 @@ e este arquivo carregam sozinhos.
 
 ## Estado atual e pendências (atualize ao fim de cada sessão)
 
-- Clientes: Nil (7 ativos, cadastrado em 01/10/2026 por print sem preço médio: todos os custos estão iguais à cotação, lucro zero até o usuário mandar os preços médios; caixa R$ 201,23; base de bônus R$ 700.000 em 31/01/2026, dia aproximado; a posição vendida de IVVB11 aguarda o print de Aluguel), Felipe (5 ativos), RD (16 ativos, carteira do próprio usuário, conferida
+- Clientes: Nil (8 ativos; preços médios do print de 08/10/2026, refinados pela faixa que reproduz preço médio e rentabilidade; caixa R$ 201,23; base de bônus R$ 700.000 em 31/01/2026, dia aproximado; VULC3 entrou nesse print. Pendente: IVVB11 vendida (−371) com custo igual à cotação até chegar o print de Aluguel. As alocações do print (145,4% Brasil + 0,4% Global) sugerem patrimônio líquido de ~R$ 684 mil e lado vendido de ~R$ 314 mil, bem maior que os −371 de IVVB11 do app: conferir se há mais posições vendidas), Felipe (5 ativos), RD (16 ativos, carteira do próprio usuário, conferida
   contra o print de custódia de 11/09/2026), FRAN (6 ativos) e GABRIEL (5 ativos), os
   dois últimos conferidos linha a linha contra prints de 21/09/2026.
 - Cotações de fechamento de 11/09/2026 para 27 papéis, atualizadas em 21/09/2026 pelos
