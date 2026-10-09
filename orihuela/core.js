@@ -7,7 +7,8 @@
  * {
  *   version: 1,
  *   updatedAt: ISO string (qualquer alteração em qualquer lugar atualiza),
- *   quotes: { "PETR4": { price: 38.12, at: ISO } , ... },
+ *   quotes: { "PETR4": { price: 38.12, at: ISO, prev?: 37.80 } , ... },
+ *           (prev = fechamento do pregão anterior, quando a fonte informa; serve para a variação do dia)
  *   clients: [{
  *     id, name,
  *     cash: saldo em dinheiro na conta (soma ao patrimônio),
@@ -135,7 +136,11 @@
     Object.keys(d.quotes || {}).forEach(k => {
       const t = normTicker(k); const v = d.quotes[k];
       const price = typeof v === 'number' ? v : num(v && v.price, NaN);
-      if (t && Number.isFinite(price)) q[t] = { price, at: (v && v.at) || d.updatedAt };
+      if (t && Number.isFinite(price)) {
+        q[t] = { price, at: (v && v.at) || d.updatedAt };
+        const prev = num(v && v.prev, NaN);
+        if (Number.isFinite(prev) && prev > 0) q[t].prev = prev;
+      }
     });
     d.quotes = q;
     d.clients = (d.clients || []).map(normalizeClient);
@@ -180,11 +185,15 @@
       const invested = p.qty * p.avgPrice;
       const value = p.qty * price;
       const profit = value - invested;
+      // variação do dia: só quando a fonte informou o fechamento anterior
+      const prev = hasQuote && q.prev > 0 ? q.prev : null;
       return {
         ticker: p.ticker, qty: p.qty, avgPrice: p.avgPrice, price, hasQuote,
         quoteAt: hasQuote ? q.at : null,
         value: round2(value), invested: round2(invested), profit: round2(profit),
         profitPct: invested !== 0 ? profit / Math.abs(invested) : 0,
+        prev, day: prev != null ? round2(p.qty * (price - prev)) : null,
+        dayPct: prev != null ? price / prev - 1 : null,
         short: p.qty < 0
       };
     }).sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
@@ -198,25 +207,61 @@
     const ret = capital > 0 ? total / capital - 1 : null;
     const bb = client.bonusBase;
     const vsBonus = bb && bb.value > 0 ? total / bb.value - 1 : null;
+    // resultado do dia: soma das posições com fechamento anterior conhecido
+    const withDay = positions.filter(p => p.day != null);
+    const day = withDay.length ? round2(withDay.reduce((s, p) => s + p.day, 0)) : null;
+    const base = day != null ? total - day : 0;
+    positions.forEach(p => { p.weight = total !== 0 ? p.value / total : null; });
     return {
       id: client.id, name: client.name, positions,
       invested: round2(invested), stocks: round2(stocks), cash: round2(cash),
       total: round2(total), profit: round2(profit),
       profitPct: invested !== 0 ? profit / Math.abs(invested) : 0,
       capital: round2(capital), ret, bonusBase: bb, vsBonus,
+      day, dayPct: day != null && base > 0 ? day / base : null,
+      dayPartial: withDay.length > 0 && withDay.length < positions.length,
       missingQuotes: positions.filter(p => !p.hasQuote).map(p => p.ticker)
     };
+  }
+
+  // Rentabilidade num período: compara o fator de hoje (1 + acumulada) com o do último
+  // ponto do gráfico até `days` dias atrás. Aportes e retiradas não distorcem, porque a
+  // acumulada já é medida sobre o capital aportado. Sem ponto antigo o bastante: null.
+  function periodReturn(client, computed, days, today) {
+    if (computed.ret == null) return null;
+    const ref = new Date((today || localDateISO()) + 'T12:00:00');
+    ref.setDate(ref.getDate() - days);
+    const target = localDateISO(ref);
+    let pt = null;
+    client.history.forEach(h => { if (h.date <= target && h.ret != null) pt = h; });
+    if (!pt || 1 + pt.ret <= 0) return null;
+    return (1 + computed.ret) / (1 + pt.ret) - 1;
+  }
+  // Data do pregão (America/São Paulo, UTC−3 sem horário de verão) de um instante ISO.
+  function tradingDate(iso) {
+    const t = Date.parse(iso);
+    return Number.isFinite(t) ? new Date(t - 3 * 3600 * 1000).toISOString().slice(0, 10) : null;
   }
   function computeAll(data) { return data.clients.map(c => computeClient(c, data.quotes)); }
 
   // ---------- cotações e histórico ----------
+  // map: { TICKER: preço } ou { TICKER: { price, prev?, at? } }. Sem `prev` novo, o
+  // fechamento anterior antigo só é mantido se for do mesmo pregão.
   function setQuotes(data, map, at) {
     at = at || new Date().toISOString();
     let n = 0;
     Object.keys(map || {}).forEach(k => {
-      const t = normTicker(k); const price = num(map[k], NaN);
+      const t = normTicker(k); const v = map[k];
+      const obj = v && typeof v === 'object';
+      const price = num(obj ? v.price : v, NaN);
       if (!t || !Number.isFinite(price) || price < 0) return;
-      data.quotes[t] = { price: round2(price), at }; n++;
+      const when = obj && v.at ? v.at : at;
+      const q = { price: round2(price), at: when };
+      const prev = obj ? num(v.prev, NaN) : NaN;
+      const old = data.quotes[t];
+      if (Number.isFinite(prev) && prev > 0) q.prev = round2(prev);
+      else if (old && old.prev > 0 && tradingDate(old.at) === tradingDate(when)) q.prev = old.prev;
+      data.quotes[t] = q; n++;
     });
     touch(data);
     return n;
@@ -429,7 +474,7 @@
     round2, num, parseNum, localDateISO, uid, normTicker, isISODate,
     fmtBRL, fmtNum, fmtInt, fmtSignedBRL, fmtPct, fmtDate, fmtDateTime,
     emptyData, newClient, normalize, touch, findClient,
-    investedOf, tickerSummary, tickers, missingQuotes, computeClient, computeAll,
+    investedOf, tickerSummary, tickers, missingQuotes, computeClient, computeAll, periodReturn, tradingDate,
     setQuotes, pruneQuotes, snapshotAll, snapshotClient, upsertHistory,
     TX_TYPES, TRADE_TYPES, applyTransaction, isLastTransaction, removeTransaction,
     autoCapital, setPosition, removePosition, addClient, removeClient, updateClient,

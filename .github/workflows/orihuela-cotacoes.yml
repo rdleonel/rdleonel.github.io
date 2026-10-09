@@ -1,0 +1,45 @@
+# Robô de cotações do Orihuela: todo dia útil às 18h30 de Brasília (21h30 UTC) busca as
+# cotações na brapi, grava orihuela/data.json e registra o ponto do pregão de todos os clientes.
+# Também roda à mão: Actions → Orihuela · cotações → Run workflow.
+name: Orihuela · cotações
+
+on:
+  schedule:
+    - cron: '30 21 * * 1-5'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: orihuela-cotacoes
+  cancel-in-progress: false
+
+jobs:
+  cotacoes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Buscar cotações e gravar
+        env:
+          BRAPI_TOKEN: ${{ secrets.BRAPI_TOKEN }}
+        run: |
+          git config user.name "orihuela-robo"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Se alguém gravar no meio do caminho (o app no celular, por exemplo), refaz em cima da versão nova.
+          for tentativa in 1 2 3; do
+            git fetch -q origin "${GITHUB_REF_NAME}"
+            git reset -q --hard "origin/${GITHUB_REF_NAME}"
+            node orihuela/tools/robo-cotacoes.js
+            if git diff --quiet -- orihuela/data.json; then echo "Nada mudou."; exit 0; fi
+            git add orihuela/data.json
+            git commit -q -m "Orihuela: cotações de fechamento ($(TZ=America/Sao_Paulo date +%d/%m/%Y))"
+            if git push -q origin "HEAD:${GITHUB_REF_NAME}"; then exit 0; fi
+            echo "Push recusado (tentativa $tentativa); refazendo sobre a versão mais nova."
+            sleep 10
+          done
+          exit 1

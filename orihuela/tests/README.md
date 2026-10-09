@@ -22,6 +22,7 @@ As capturas de tela vão para um diretório temporário, cujo caminho é impress
 | `e2e-quotes.js` | Atualização de cotações: busca automática, anexar print fixo no topo, serviço fora do ar, resposta parcial, teste de conexão em Ajustes |
 | `e2e-batch.js` | Busca em lotes contra um serviço que limita papéis por chamada: o lote encolhe, a lista completa, o tamanho é lembrado, token inválido não vira 22 chamadas |
 | `unit-vision.js` | Leitura de prints por IA, em Node puro (sem navegador nem rede): montagem do pedido (imagem, schema, cabeçalhos), leitura da resposta e erros, preço médio refinado, plano de conferência com avisos e aplicação de posições e operações |
+| `e2e-live.js` | Preços ao vivo: busca sozinha no pregão (relógio simulado), aprende o limite de papéis por consulta pela resposta da brapi, mostra o resultado do dia no painel, na carteira e na lista, não grava nada, ordenação e detalhe da tabela da carteira, tabela de desempenho, reaproveita a busca ao reabrir e força com o botão |
 | `e2e-update.js` | Atualização do app: aviso de versão nova, instalação, dados e PIN preservados, cache antigo removido |
 
 Os testes de cotações usam um serviço simulado (as chamadas a `brapi.dev` são
@@ -30,9 +31,15 @@ interceptadas), então não dependem de rede nem de token.
 ## Requisitos
 
 Node 20 ou mais novo, com `playwright` instalado e um Chromium disponível. Nos
-contêiners do Claude Code o navegador já vem em `/opt/pw-browsers`; fora deles, rode
-`npx playwright install chromium` e ajuste o `executablePath` no topo de cada arquivo,
-ou remova essa opção para usar o navegador que o Playwright baixou.
+contêiners do Claude Code o navegador já vem em `/opt/pw-browsers`. Fora deles, aponte
+`PW_CHROME` para um Chrome instalado e `NODE_PATH` para onde está o `playwright`. No Mac:
+
+```bash
+PW_CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" NODE_PATH=/caminho/node_modules bash orihuela/tests/run.sh
+```
+
+Os testes que dependem da hora (preços ao vivo só no pregão) fixam o relógio do navegador,
+então dão o mesmo resultado a qualquer hora.
 
 ## Gerador de ícones
 

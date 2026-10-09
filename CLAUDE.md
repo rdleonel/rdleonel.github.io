@@ -21,9 +21,9 @@ Ao alterar `orihuela/index.html`, `app.js`, `styles.css` ou `core.js`, increment
 
 ## Testes
 
-Depois de mexer no app, rode `bash orihuela/tests/run.sh`. São cinco testes de ponta a
+Depois de mexer no app, rode `bash orihuela/tests/run.sh`. São seis testes de ponta a
 ponta num navegador de verdade, em tela de iPhone: navegação, cálculos pela interface,
-atualização de cotações, busca em lotes e o ciclo de atualização do app. Detalhes e
+atualização de cotações, busca em lotes, preços ao vivo e o ciclo de atualização do app. Detalhes e
 requisitos em `orihuela/tests/README.md`. Os ícones saem de
 `node orihuela/tools/mkicon.js`.
 
@@ -33,6 +33,19 @@ O projeto inteiro vive neste repositório: app, dados, testes, a skill `orihuela
 notas. Nada depende de uma conta específica do Claude nem do histórico de uma conversa.
 Para continuar de outra conta, basta conectar o GitHub e abrir este repositório; a skill
 e este arquivo carregam sozinhos.
+
+## Cotações automáticas (robô) e ao vivo
+
+Todo dia útil às 18h30 de Brasília o workflow `.github/workflows/orihuela-cotacoes.yml`
+roda `orihuela/tools/robo-cotacoes.js`, que grava as cotações em `orihuela/data.json` e
+o ponto do pregão de todos os clientes, e faz commit direto na main. Por isso: **sempre
+`git pull` antes de mexer em `data.json`**, e não precisa mais atualizar cotações à mão
+a cada print (só quando o usuário pedir ou o robô falhar). O token da brapi do robô fica
+no secret `BRAPI_TOKEN`. Para testar sem gravar: `BRAPI_TOKEN=... node
+orihuela/tools/robo-cotacoes.js --dry-run`. No app, os preços ao vivo são só exibição e
+nunca entram em `data.json`. Cada cotação pode ter `prev` (fechamento anterior), usado na
+variação do dia; o CLI `quotes` não informa `prev`, e o `setQuotes` só mantém o antigo se
+for do mesmo pregão.
 
 ## Leitura de prints dentro do app
 

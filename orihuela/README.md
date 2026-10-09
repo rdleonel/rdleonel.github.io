@@ -9,38 +9,50 @@ e abre off-line com a última versão dos dados que foi sincronizada.
 Pensada para uso com uma mão no iPhone: **nada clicável fica no topo da tela**. As
 cinco telas ficam numa barra de abas fixa no rodapé (Início, Cotações, Clientes,
 Desempenho, Ajustes), e a ação principal de cada tela fica numa barra logo acima
-dela ("Atualizar todas as cotações", "+ Novo cliente", "Nova operação"). As ações
-secundárias da carteira estão no botão ••• ao lado. Para sair da carteira de um
+dela ("Atualizar preços agora", "Atualizar cotações", "+ Novo cliente", "Nova operação").
+As ações secundárias da carteira estão no botão ••• ao lado. Para sair da carteira de um
 cliente, toque na aba Clientes ou arraste a partir da borda esquerda. Quando o
 teclado abre, as abas saem de cena e a barra de ação encosta no teclado.
 
-## Atualizar as cotações
+## Cotações: robô no fechamento + preços ao vivo
 
-O botão **Atualizar cotações** fica fixo no rodapé da tela inicial. Ele abre a tela de
-conferência, onde os preços podem chegar de três formas:
+**Robô (grava).** Todo dia útil às 18h30 de Brasília o workflow
+`.github/workflows/orihuela-cotacoes.yml` roda `orihuela/tools/robo-cotacoes.js`: busca na
+brapi a cotação de cada papel em carteira (um papel por consulta, como o plano gratuito
+exige), grava em `data.json` com o fechamento anterior e registra o ponto do pregão no
+gráfico de todos os clientes. O token fica no secret `BRAPI_TOKEN` do repositório. A data
+do ponto é a do pregão informada pela brapi, então rodar num feriado só regrava o último
+pregão. Dá para rodar à mão em Actions → "Orihuela · cotações" → Run workflow, ou no
+terminal com `BRAPI_TOKEN=... node orihuela/tools/robo-cotacoes.js --dry-run` (mostra sem
+gravar). Se o app gravar ao mesmo tempo, o robô refaz em cima da versão nova.
 
-1. **Busca automática.** Com um serviço configurado em Ajustes, o app já busca tudo ao
-   abrir a tela: cada campo vem preenchido, com borda verde e a variação em relação ao
-   preço anterior ao lado (uma variação absurda denuncia leitura errada na hora). O
-   padrão é a brapi.dev, que cobre ações, BDRs, ETFs e fundos imobiliários da B3 e
-   precisa de um token gratuito. O endereço é um template com `{TICKERS}` e `{TOKEN}`,
-   então dá para trocar de serviço sem mexer no código; a leitura da resposta é
-   tolerante e reconhece os formatos mais comuns de JSON.
+**Ao vivo (só mostra).** Com o token da brapi em Ajustes, o app busca os preços sozinho
+durante o pregão (dias úteis, 9h45 às 18h15) ao abrir, ao voltar para ele e a cada 30
+minutos com ele aberto, e o botão **Atualizar preços agora** força a busca. Esses preços
+entram em todos os números da tela, inclusive o resultado do dia, mas **nunca são
+gravados**: não criam ponto no gráfico nem edição pendente. Fechar e abrir o app no mesmo
+dia reaproveita a última busca. O plano gratuito dá 15 mil consultas por mês e cada busca
+gasta uma por papel; quando o saldo (mostrado em Ajustes) fica abaixo de 2.000, o app para
+de buscar sozinho e deixa o restante para o robô. Se o plano limitar papéis por consulta,
+o app lê o limite da própria resposta da brapi e passa a pedir um a um.
 
-   A busca é feita em lotes. Planos gratuitos costumam limitar quantos papéis cabem em
-   uma chamada, então, quando o serviço recusa um lote grande, o app reduz sozinho (20,
-   depois 5, depois um a um), completa a lista e guarda o tamanho que funcionou para as
-   próximas vezes. Erro de conexão ou token inválido para na primeira tentativa, sem
-   repetir a chamada. Use o botão Testar em Ajustes para conferir a cobertura dos seus
-   papéis antes de depender da busca.
-2. **Print da corretora.** O botão ao lado (ícone de imagem) abre a câmera ou a galeria.
-   O print fica fixo no topo da tela, com três tamanhos, enquanto a lista de preços rola
-   embaixo: dá para conferir sem trocar de aplicativo. A tecla Enter pula para o próximo
-   papel.
+**Variação do dia.** Cada cotação guarda o fechamento anterior (`prev`), calculado como
+preço − variação do dia informada pela brapi (o campo de fechamento anterior dela às
+vezes traz o after-market). Resultado do dia = cotas × (preço − fechamento anterior).
+Fora do pregão, a tela diz de que dia é a variação ("em 08/10").
+
+**Gravar à mão.** Na aba Cotações, **Atualizar cotações** abre a conferência de sempre,
+onde os preços chegam de três formas e só são gravados ao tocar em **Salvar cotações**
+(o mesmo toque registra um ponto no gráfico de todos os clientes na data escolhida):
+
+1. **Busca.** Cada campo vem preenchido, com borda verde e a variação em relação ao preço
+   anterior ao lado (uma variação absurda denuncia leitura errada na hora). O endereço é
+   um template com `{TICKERS}` e `{TOKEN}`, então dá para trocar de serviço sem mexer no
+   código; a leitura da resposta reconhece os formatos mais comuns de JSON. Erro de
+   conexão ou token inválido para na primeira tentativa, sem repetir a chamada.
+2. **Print da corretora.** O print fica fixo no topo da tela, com três tamanhos, enquanto
+   a lista de preços rola embaixo. A tecla Enter pula para o próximo papel.
 3. **À mão**, digitando direto nos campos.
-
-Em qualquer caso nada é gravado antes de você tocar em **Salvar cotações**, e o mesmo
-toque registra um ponto no gráfico de todos os clientes na data escolhida.
 
 A leitura de preços por print continua manual (itens 2 e 3). Para ler **operações e
 posições** de um cliente por imagem, veja a próxima seção.
@@ -81,17 +93,22 @@ conferência; testado em `tests/unit-vision.js`) e `app.js` (tela de conferênci
 
 ## O que o app mostra
 
-- **Cotações**: todas as ações que aparecem em pelo menos uma carteira, com a última
-  cotação e a data. Botão para atualizar todas de uma vez (isso registra um ponto novo
-  no gráfico de cada cliente).
-- **Clientes**: lista de apelidos. Cada carteira mostra, por ação: cotas, valor atual
-  (cotas × última cotação), total investido (cotas × preço médio) e lucro ou prejuízo
-  (valor atual − investido). No topo: patrimônio total (ações + caixa), rentabilidade
-  acumulada, valor da carteira no último bônus e o percentual acima (verde) ou abaixo
-  (vermelho) dessa base. Abaixo: o track record (gráfico com camadas de patrimônio e
-  rentabilidade sobre o mesmo eixo de datas) e o registro de operações, com o resultado
-  de cada venda.
-- **Desempenho**: todos os clientes lado a lado (patrimônio, rentabilidade, vs. bônus).
+- **Início (painel)**: patrimônio total sob gestão com o resultado do dia, o estado dos
+  preços (ao vivo ou gravados) e um cartão por cliente com patrimônio, variação do dia,
+  rentabilidade acumulada e posição contra a base do último bônus.
+- **Cotações**: lista de todos os papéis em carteira com preço e variação do dia,
+  ordenável por variação, exposição (valor somado em todas as carteiras) ou A–Z. Tocar
+  num papel mostra quem tem e quanto, e dá o atalho para corrigir o preço.
+- **Clientes**: lista de apelidos. A carteira abre com patrimônio, rentabilidade, resultado
+  do dia, caixa, investido, lucro e bônus, e uma **tabela** com Papel, Peso (% do
+  patrimônio), Hoje, Lucro e Valor, ordenável pelo cabeçalho. Tocar numa linha mostra
+  cotas, preço médio, cotação, investido, lucro e resultado do dia, com atalhos para
+  editar a posição e ver quem mais tem o papel. Abaixo: o track record e o registro de
+  operações.
+- **Desempenho**: tabela por período com todos os clientes: Hoje, 7 dias, 30 dias,
+  acumulada e contra o bônus, com fundo colorido pela intensidade do resultado. 7 e 30
+  dias comparam com o ponto do gráfico daquela idade (`periodReturn` no `core.js`) e
+  ficam em branco até haver histórico suficiente.
 
 Tudo é editável no próprio app: criar, renomear e excluir clientes, ajustar cotas,
 preço médio, caixa, capital e base do bônus, registrar operações, adicionar ou apagar

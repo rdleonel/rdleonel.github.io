@@ -15,7 +15,7 @@ SERVER=$!
 trap 'kill $SERVER 2>/dev/null' EXIT
 sleep 1
 
-TESTS=${1:-"nav func quotes batch update"}
+TESTS=${1:-"nav func quotes batch live update"}
 FALHAS=0
 
 # teste da leitura de prints (Node puro, sem navegador)

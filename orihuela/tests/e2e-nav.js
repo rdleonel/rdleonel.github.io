@@ -6,7 +6,7 @@ const BASE = process.env.BASE || 'http://127.0.0.1:8765/orihuela/';
 const VH = 844;
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--no-sandbox'] });
+  const browser = await chromium.launch({ executablePath: process.env.PW_CHROME || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--no-sandbox'] });
   const ctx = await browser.newContext({ viewport: { width: 390, height: VH }, deviceScaleFactor: 2, isMobile: false, hasTouch: true, locale: 'pt-BR' });
   const page = await ctx.newPage();
   const errors = [];
