@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-09T21:36:52.178Z",
+  "updatedAt": "2026-10-09T21:48:49.092Z",
   "quotes": {
     "INBR32": {
       "price": 38.35,
@@ -310,29 +310,19 @@
     {
       "id": "c_mtxtv5bv9c4mt",
       "name": "RD",
-      "cash": 0,
-      "capital": 539156.07,
+      "cash": 3109.17,
+      "capital": 671064.28,
       "bonusBase": null,
       "positions": [
         {
           "ticker": "ROXO34",
-          "qty": 23080,
-          "avgPrice": 13.264718
+          "qty": 32080,
+          "avgPrice": 13.269007
         },
         {
           "ticker": "COGN3",
-          "qty": 84900,
-          "avgPrice": 2.109397
-        },
-        {
-          "ticker": "AMZO34",
-          "qty": 1089,
-          "avgPrice": 66.079733
-        },
-        {
-          "ticker": "GMAT3",
-          "qty": 13200,
-          "avgPrice": 4.464911
+          "qty": 163000,
+          "avgPrice": 2.622368
         },
         {
           "ticker": "M2RV34",
@@ -370,29 +360,29 @@
           "avgPrice": 63.8
         },
         {
-          "ticker": "BOVA11",
-          "qty": -609,
-          "avgPrice": 182.42
-        },
-        {
           "ticker": "IVVB11",
-          "qty": -1456,
-          "avgPrice": 443.99498
+          "qty": -3439,
+          "avgPrice": 441.258924
         },
         {
           "ticker": "INBR32",
-          "qty": 10337,
-          "avgPrice": 29.507162
-        },
-        {
-          "ticker": "MUTC34",
-          "qty": 360,
-          "avgPrice": 751.318222
+          "qty": 27217,
+          "avgPrice": 34.991495
         },
         {
           "ticker": "CVCB3",
           "qty": 1,
           "avgPrice": 6.72
+        },
+        {
+          "ticker": "VULC3",
+          "qty": 14700,
+          "avgPrice": 16.52
+        },
+        {
+          "ticker": "HASH11",
+          "qty": 600,
+          "avgPrice": 53.4
         }
       ],
       "transactions": [],
@@ -423,11 +413,11 @@
         },
         {
           "date": "2026-10-09",
-          "total": 845637.54,
-          "invested": 539156.08,
-          "cash": 0,
-          "capital": 539156.07,
-          "ret": 0.5684466651743343
+          "total": 939611.18,
+          "invested": 667955.1,
+          "cash": 3109.17,
+          "capital": 671064.28,
+          "ret": 0.4001805907475806
         }
       ]
     },
