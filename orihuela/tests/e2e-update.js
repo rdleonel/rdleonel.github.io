@@ -8,7 +8,7 @@ const SW = path.join(__dirname, '..', 'sw.js');
 
 (async () => {
   const original = fs.readFileSync(SW, 'utf8');
-  const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--no-sandbox'] });
+  const browser = await chromium.launch({ executablePath: process.env.PW_CHROME || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--no-sandbox'] });
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, locale: 'pt-BR' });
   const page = await ctx.newPage();
   const errors = [];

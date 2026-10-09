@@ -3,8 +3,8 @@
   'use strict';
   const C = window.OrihuelaCore;
   const V = window.OrihuelaVision;
-  const APP_VERSION = '1.4.0';
-  const LS = { state: 'orihuela.state', pin: 'orihuela.pin', gh: 'orihuela.gh', ui: 'orihuela.ui', qp: 'orihuela.quotes', ai: 'orihuela.ai' };
+  const APP_VERSION = '2.0.0';
+  const LS = { state: 'orihuela.state', pin: 'orihuela.pin', gh: 'orihuela.gh', ui: 'orihuela.ui', qp: 'orihuela.quotes', ai: 'orihuela.ai', live: 'orihuela.live' };
   const DEFAULT_GH = { owner: 'rdleonel', repo: 'rdleonel.github.io', branch: 'main', path: 'orihuela/data.json', token: '' };
   // Serviço de cotações. {TICKERS} e {TOKEN} são trocados na hora da busca.
   const DEFAULT_QP = { url: 'https://brapi.dev/api/quote/{TICKERS}?token={TOKEN}', token: '', sep: ',', auth: '', batch: 20 };
@@ -20,7 +20,7 @@
   let gh = Object.assign({}, DEFAULT_GH, load(LS.gh) || {});
   let qp = Object.assign({}, DEFAULT_QP, load(LS.qp) || {});
   let ai = Object.assign({ key: '', model: '' }, load(LS.ai) || {});   // leitura de prints por IA (chave só neste aparelho)
-  let ui = Object.assign({ chart: { total: true, ret: true }, perfSort: 'name' }, load(LS.ui) || {});
+  let ui = Object.assign({ chart: { total: true, ret: true }, perfSort: 'ret', mktSort: 'var', walletSort: { k: 'value', dir: -1 } }, load(LS.ui) || {});
   let pendingRemote = null;   // versão do servidor que conflita com edições locais
   let syncStatus = 'idle';    // idle | syncing | offline | error | ok
   let syncError = '';
@@ -246,49 +246,116 @@
     return null;
   }
 
-  // ---------- HOME ----------
+  // ---------- PREÇOS AO VIVO ----------
+  // O robô do GitHub grava o fechamento todo dia útil. Com o app aberto no pregão, os preços
+  // são buscados de novo para exibição: entram nos números da tela, mas nunca são gravados.
+  // O plano gratuito da brapi dá 15 mil consultas por mês e uma por papel, então a busca
+  // automática roda no máximo a cada 30 minutos e para quando o saldo do plano fica baixo.
+  const LIVE_EVERY_MS = 30 * 60 * 1000;
+  let live = { quotes: {}, at: null, busy: false, msg: '' };
+  // preços ao vivo do mesmo dia sobrevivem a fechar e abrir o app (economiza consultas)
+  (function restoreLive() {
+    const sv = load(LS.live);
+    if (sv && sv.at && sv.quotes && C.tradingDate(new Date(sv.at).toISOString()) === C.tradingDate(new Date().toISOString())) { live.quotes = sv.quotes; live.at = sv.at; }
+  })();
+  const quoteDetail = {}; // { TICKER: { prev, at } } da última resposta da brapi
+  function quotesNow() {
+    const out = Object.assign({}, state.data.quotes);
+    Object.keys(live.quotes).forEach(t => {
+      const lq = live.quotes[t], sq = out[t];
+      if (!sq || !sq.at || String(lq.at) >= String(sq.at)) out[t] = lq;
+    });
+    return out;
+  }
+  function calc(c) { return C.computeClient(c, quotesNow()); }
+  function calcAll() { const q = quotesNow(); return state.data.clients.map(c => C.computeClient(c, q)); }
+  function spClock() { const d = new Date(Date.now() - 3 * 3600 * 1000); return { dow: d.getUTCDay(), min: d.getUTCHours() * 60 + d.getUTCMinutes() }; }
+  function marketHours() { const n = spClock(); return n.dow >= 1 && n.dow <= 5 && n.min >= 9 * 60 + 45 && n.min <= 18 * 60 + 15; }
+  function lastSavedQuoteAt() { return Object.keys(state.data.quotes).map(k => state.data.quotes[k].at).sort().pop() || null; }
+  // "hoje" quando os preços são do pregão de hoje; senão, a data do pregão
+  function dayLabel() {
+    const at = live.at ? new Date(live.at).toISOString() : lastSavedQuoteAt();
+    const d = at ? C.tradingDate(at) : null;
+    return !d || d === C.tradingDate(new Date().toISOString()) ? 'hoje' : 'em ' + d.slice(8, 10) + '/' + d.slice(5, 7);
+  }
+  function liveStatusText() {
+    if (live.busy) return live.msg || 'Atualizando preços…';
+    const saved = lastSavedQuoteAt();
+    const base = live.at
+      ? 'Preços ao vivo de ' + new Date(live.at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+      : 'Preços gravados de ' + (saved ? C.fmtDateTime(saved) : '—');
+    if (live.msg) return base + ' · ' + live.msg;
+    if (!quotesReady()) return base + ' · para ver ao vivo, informe o token da brapi em Ajustes';
+    return base;
+  }
+  function liveStatusEl() { return h('span', { class: 'live-status' + (live.at && !live.msg ? ' on' : ''), text: liveStatusText() }); }
+  function paintLiveStatus() { document.querySelectorAll('.live-status').forEach(el => { el.textContent = liveStatusText(); el.classList.toggle('on', !!live.at && !live.msg && !live.busy); }); }
+  async function refreshLive(force) {
+    if (live.busy || !state.data || !quotesReady() || !navigator.onLine) return;
+    if (!force) {
+      if (quotesEditing || !marketHours()) return;
+      if (live.at && Date.now() - live.at < LIVE_EVERY_MS) return;
+      if (qp.remaining != null && qp.remaining < 2000) return; // guarda o saldo do plano para o robô
+    }
+    const wanted = C.tickers(state.data);
+    if (!wanted.length) return;
+    live.busy = true; live.msg = 'Atualizando preços…'; paintLiveStatus();
+    try {
+      const got = await fetchQuotes(wanted, (a, b) => { live.msg = 'Atualizando preços… ' + a + ' de ' + b; paintLiveStatus(); });
+      const q = {};
+      Object.keys(got).forEach(t => { const det = quoteDetail[t] || {}; q[t] = { price: got[t], prev: det.prev, at: det.at || new Date().toISOString() }; });
+      live.quotes = q; live.at = Date.now(); live.msg = '';
+      save(LS.live, { at: live.at, quotes: q });
+      const miss = wanted.filter(t => got[t] == null);
+      if (miss.length) live.msg = 'sem preço: ' + miss.join(', ');
+    } catch (e) {
+      live.msg = 'não atualizei (' + e.message + ')';
+    }
+    live.busy = false;
+    // não redesenha por baixo de quem está digitando
+    const ae = document.activeElement;
+    if (ae && $('#view').contains(ae) && /INPUT|TEXTAREA|SELECT/.test(ae.tagName)) paintLiveStatus(); else render();
+  }
+
+  // ---------- INÍCIO (painel) ----------
+  function chipPct(label, v, empty) {
+    return h('span', { class: 'pchip ' + (v == null ? '' : signCls(v)), text: v == null ? empty : label + ' ' + C.fmtPct(v) });
+  }
   function viewHome(view) {
     const d = state.data;
-    const all = C.computeAll(d);
+    const all = calcAll().sort((a, b) => b.total - a.total);
     const aum = all.reduce((s, r) => s + r.total, 0);
-    const ts = C.tickerSummary(d);
-    const lastQuote = Object.keys(d.quotes).map(k => d.quotes[k].at).sort().pop();
+    const withDay = all.filter(r => r.day != null);
+    const day = withDay.length ? withDay.reduce((s, r) => s + r.day, 0) : null;
+    const dayPct = day != null && aum - day > 0 ? day / (aum - day) : null;
     const missing = C.missingQuotes(d);
 
-    // Leitura em cima, toque embaixo: no iPhone o polegar alcança bem só a metade inferior.
     view.appendChild(h('div', { class: 'card' },
       h('div', { class: 'hero' },
         h('div', { class: 'label', text: 'Patrimônio sob gestão' }),
-        h('div', { class: 'value num', text: C.fmtBRL(aum) })),
-      h('div', { class: 'status-line' },
-        h('span', {}, 'Cotações de ', h('b', { text: lastQuote ? C.fmtDateTime(lastQuote) : '—' })),
-        h('span', {}, 'Dados de ', h('b', { text: C.fmtDateTime(d.updatedAt) })))));
+        h('div', { class: 'value num', text: C.fmtBRL(aum) }),
+        h('div', { class: 'delta num ' + signCls(day), text: day == null ? 'Variação do dia aparece depois da próxima busca de preços' : C.fmtSignedBRL(day) + ' ' + dayLabel() + ' (' + C.fmtPct(dayPct) + ')' })),
+      h('div', { class: 'status-line' }, liveStatusEl())));
 
     if (missing.length) view.appendChild(h('div', { class: 'banner' },
       h('p', { text: (missing.length === 1 ? 'Ação sem cotação: ' : 'Ações sem cotação: ') + missing.join(', ') + '. Enquanto isso valem pelo preço médio.' }),
-      h('div', { class: 'btn-row' }, h('button', { class: 'btn sm', text: 'Informar cotações', onClick: () => go('#/quotes') }))));
+      h('div', { class: 'btn-row' }, h('button', { class: 'btn sm', text: 'Ver cotações', onClick: () => go('#/quotes') }))));
+
+    if (!all.length) view.appendChild(h('div', { class: 'card' }, h('div', { class: 'empty', text: 'Nenhum cliente ainda. Cadastre na aba Clientes.' })));
+    const cards = h('div', { class: 'client-cards' });
+    all.forEach(r => cards.appendChild(h('button', { class: 'client-card', onClick: () => go('#/client/' + encodeURIComponent(r.id)) },
+      h('div', { class: 'cc-top' }, h('span', { class: 'cc-name', text: r.name }), h('span', { class: 'cc-total num', text: C.fmtBRL(r.total) })),
+      h('div', { class: 'cc-chips num' },
+        chipPct(dayLabel(), r.dayPct, dayLabel() + ' —'),
+        chipPct('acum.', r.ret, 'acum. —'),
+        r.vsBonus == null ? h('span', { class: 'pchip muted', text: 'sem bônus' }) : chipPct('bônus', r.vsBonus, '')))));
+    view.appendChild(cards);
 
     view.appendChild(syncCard());
 
-    // Atualizar cotações é o que mais se faz: fica sempre no rodapé, ao alcance do polegar.
-    setActionBar(actionRow(
-      h('button', { class: 'btn primary grow', text: 'Atualizar cotações', onClick: () => startQuotesUpdate() }),
-      h('button', { class: 'btn', style: 'width:56px;flex:none', 'aria-label': 'Atualizar usando um print', onClick: () => { quotesEditing = true; go('#/quotes'); pickShot(); } },
-        svgEl('svg', { viewBox: '0 0 24 24', class: 'ic24' },
-          svgEl('rect', { x: 3, y: 5, width: 18, height: 14, rx: 2 }),
-          svgEl('circle', { cx: 8.5, cy: 10, r: 1.6 }),
-          svgEl('path', { d: 'M4 17l5-4.5 3.5 3L16 12l4 4' })))));
-
-    view.appendChild(h('div', { class: 'nav-grid' },
-      navCard('📈', 'Cotações', ts.length + (ts.length === 1 ? ' ação' : ' ações') + (lastQuote ? ' · ' + C.fmtDate(lastQuote) : ''), '#/quotes'),
-      navCard('👥', 'Clientes', d.clients.length + (d.clients.length === 1 ? ' carteira' : ' carteiras'), '#/clients'),
-      navCard('🏁', 'Desempenho', 'Todos lado a lado', '#/performance')));
-  }
-  function navCard(icon, title, desc, hash) {
-    return h('button', { class: 'nav-card', onClick: () => go(hash) },
-      h('div', { class: 'ico', text: icon }),
-      h('div', {}, h('div', { class: 'ttl', text: title }), h('div', { class: 'desc', text: desc })),
-      h('div', { class: 'chev', text: '›' }));
+    setActionBar(actionRow(quotesReady()
+      ? h('button', { class: 'btn primary grow', text: live.busy ? 'Atualizando preços…' : 'Atualizar preços agora', disabled: live.busy, onClick: () => refreshLive(true) })
+      : h('button', { class: 'btn primary grow', text: 'Ver preços ao vivo', onClick: () => { go('#/settings'); toast('Informe o token da brapi em "Serviço de cotações".'); } })));
   }
   function syncCard() {
     const online = navigator.onLine;
@@ -351,16 +418,34 @@
     }
     if (!quotesEditing) {
       setActionBar(actionRow(h('button', { class: 'btn primary grow', text: 'Atualizar cotações', onClick: () => startQuotesUpdate() })));
+      const qn = quotesNow();
+      const rows = ts.map(t => {
+        const q = qn[t.ticker];
+        const price = q ? q.price : null;
+        const dayPct = q && q.prev > 0 ? q.price / q.prev - 1 : null;
+        return Object.assign({}, t, { price, at: q ? q.at : null, dayPct, exposure: price != null ? Math.abs(t.qty) * price : 0 });
+      });
+      const sorters = {
+        var: (a, b) => (b.dayPct == null ? -Infinity : b.dayPct) - (a.dayPct == null ? -Infinity : a.dayPct),
+        exp: (a, b) => b.exposure - a.exposure,
+        az: (a, b) => a.ticker.localeCompare(b.ticker)
+      };
+      const sortKey = sorters[ui.mktSort] ? ui.mktSort : 'var';
+      rows.sort(sorters[sortKey]);
+      view.appendChild(h('div', { class: 'card' }, h('div', { class: 'status-line' }, liveStatusEl())));
+      const labels = { var: 'Variação', exp: 'Exposição', az: 'A–Z' };
+      view.appendChild(h('div', { class: 'chips', style: 'margin-bottom:12px' },
+        Object.keys(labels).map(k => h('button', { class: 'chip' + (sortKey === k ? ' on' : ''), text: labels[k], onClick: () => { ui.mktSort = k; persistUI(); render(); } }))));
       const list = h('div', { class: 'card tight' });
-      ts.forEach(t => {
-        list.appendChild(h('button', { class: 'quote-row', style: 'width:100%;text-align:left', onClick: () => editSingleQuote(t.ticker) },
-          h('div', { class: 'tk' }, t.ticker, h('small', { text: t.clients + (t.clients === 1 ? ' cliente' : ' clientes') + ' · ' + C.fmtInt(t.qty) + ' cotas' })),
+      rows.forEach(t => {
+        list.appendChild(h('button', { class: 'quote-row', style: 'width:100%;text-align:left', onClick: () => tickerSheet(t.ticker) },
+          h('div', { class: 'tk' }, t.ticker, h('small', { text: t.clients + (t.clients === 1 ? ' cliente' : ' clientes') + ' · ' + C.fmtInt(t.qty) + ' cotas' + (sortKey === 'exp' ? ' · ' + C.fmtBRL(t.exposure) : '') })),
           h('div', { class: 'price' },
-            h('div', { class: 'v', text: t.price == null ? 'sem cotação' : C.fmtBRL(t.price) }),
-            h('div', { class: 'd', text: t.at ? C.fmtDateTime(t.at) : 'toque para informar' }))));
+            h('div', { class: 'v num', text: t.price == null ? 'sem cotação' : C.fmtBRL(t.price) }),
+            h('div', { class: 'd num ' + signCls(t.dayPct), text: t.dayPct == null ? (t.at ? C.fmtDateTime(t.at) : 'toque para informar') : C.fmtPct(t.dayPct) + ' ' + dayLabel() }))));
       });
       view.appendChild(list);
-      view.appendChild(h('p', { class: 'small muted', text: 'Todas as ações presentes em pelo menos uma carteira. Toque em uma linha para corrigir uma cotação isolada.' }));
+      view.appendChild(h('p', { class: 'small muted', text: 'O robô grava o fechamento sozinho todo dia útil às 18h30. "Atualizar cotações" grava os preços agora, à mão ou por print. Toque num papel para ver quem tem e corrigir o preço.' }));
       return;
     }
 
@@ -405,7 +490,9 @@
             const raw = inputs[t].value.trim();
             if (!raw) return;
             const n = C.parseNum(raw);
-            if (!Number.isFinite(n) || n < 0) bad.push(t); else map[t] = n;
+            if (!Number.isFinite(n) || n < 0) bad.push(t);
+            // preço que veio da busca: grava junto o fechamento anterior, para a variação do dia
+            else map[t] = fetchInfo && fetchInfo.got && fetchInfo.got[t] === n && quoteDetail[t] && quoteDetail[t].prev ? { price: n, prev: quoteDetail[t].prev } : n;
           });
           if (bad.length) { err.textContent = 'Valor inválido em: ' + bad.join(', '); return; }
           if (!Object.keys(map).length) { err.textContent = 'Nenhuma cotação informada.'; return; }
@@ -491,7 +578,16 @@
       const err = new Error('o serviço não respondeu ou recusou a conexão do app (CORS).');
       err.kind = 'net'; throw err;
     }
+    const rem = res.headers.get('ratelimit-remaining');
+    if (rem != null && Number.isFinite(+rem)) { qp.remaining = +rem; qp.remainingAt = new Date().toISOString(); save(LS.qp, qp); }
     if (!res.ok) {
+      // brapi: o plano limita quantos papéis cabem numa consulta e diz o limite na resposta
+      let body = null;
+      try { body = await res.clone().json(); } catch (e) { /* sem corpo */ }
+      if (body && body.code === 'QUOTES_PER_REQUEST_EXCEEDED') {
+        const err = new Error('o plano aceita menos papéis por consulta');
+        err.kind = 'batch'; err.limit = body.details && body.details.limit && body.details.limit.current; throw err;
+      }
       const err = new Error('o serviço respondeu ' + res.status +
         (res.status === 401 || res.status === 403 ? ' (token inválido ou plano sem acesso a esses papéis?)' :
           res.status === 429 ? ' (limite de consultas atingido; tente de novo em alguns minutos)' : ''));
@@ -500,6 +596,13 @@
     }
     let json;
     try { json = await res.json(); } catch (e) { const err = new Error('a resposta não é JSON.'); err.kind = 'parse'; throw err; }
+    if (json && Array.isArray(json.results)) json.results.forEach(r => {
+      const t = C.normTicker(r && r.symbol);
+      if (!t || !(r.regularMarketPrice > 0)) return;
+      // fechamento anterior = preço − variação (o campo de fechamento anterior às vezes traz o after-market)
+      const prev = Number.isFinite(r.regularMarketChange) ? r.regularMarketPrice - r.regularMarketChange : r.regularMarketPreviousClose;
+      quoteDetail[t] = { prev: prev > 0 ? C.round2(prev) : undefined, at: r.regularMarketTime || new Date().toISOString() };
+    });
     return extractQuotes(json, tickers);
   }
 
@@ -515,6 +618,11 @@
       const batch = rest.slice(0, size);
       let got = null, err = null;
       try { got = await fetchBatch(batch); } catch (e) { err = e; }
+      if (err && err.kind === 'batch' && batch.length > 1) { // o serviço disse o limite: usa direto
+        size = Math.max(1, Math.min(batch.length - 1, err.limit || 1));
+        if (qp.batch !== size) { qp.batch = size; save(LS.qp, qp); }
+        continue;
+      }
       if (err && (err.kind === 'net' || (err.kind === 'auth' && firstCall))) throw err; // não adianta insistir
       firstCall = false;
       const found = got ? Object.keys(got).length : 0;
@@ -569,6 +677,31 @@
     })(json, null);
     return out;
   }
+  // Quem tem o papel, quanto, e o atalho para corrigir o preço.
+  function tickerSheet(ticker) {
+    const q = quotesNow()[ticker];
+    const rows = [];
+    state.data.clients.forEach(c => {
+      const p = c.positions.find(x => x.ticker === ticker);
+      if (p) rows.push({ c, qty: p.qty, value: q ? p.qty * q.price : null });
+    });
+    rows.sort((a, b) => Math.abs(b.value || 0) - Math.abs(a.value || 0));
+    const list = h('div', { class: 'list' }, rows.map(x => h('button', { class: 'list-item', onClick: () => { closeModal(); go('#/client/' + encodeURIComponent(x.c.id)); } },
+      h('div', { class: 'main' }, h('div', { class: 't1', text: x.c.name }), h('div', { class: 't2', text: C.fmtInt(x.qty) + ' cotas' + (x.qty < 0 ? ' · vendida' : '') })),
+      h('div', { class: 'right' }, h('div', { class: 'v1 num', text: x.value == null ? '—' : C.fmtBRL(x.value) })))));
+    const dayPct = q && q.prev > 0 ? q.price / q.prev - 1 : null;
+    openModal(ticker, [
+      h('div', { class: 'kv' },
+        h('div', { text: 'Preço' }), h('div', { class: 'num', text: q ? C.fmtBRL(q.price) : 'sem cotação' }),
+        h('div', { text: 'Variação ' + dayLabel() }), h('div', { class: 'num ' + signCls(dayPct), text: dayPct == null ? '—' : C.fmtPct(dayPct) }),
+        h('div', { text: 'Horário' }), h('div', { text: q && q.at ? C.fmtDateTime(q.at) : '—' })),
+      h('h4', { class: 'sheet-sub', text: rows.length + (rows.length === 1 ? ' cliente' : ' clientes') }),
+      list,
+      h('div', { class: 'actions' },
+        h('button', { class: 'btn', text: 'Fechar', onClick: closeModal }),
+        h('button', { class: 'btn primary', text: 'Corrigir cotação', onClick: () => { closeModal(); editSingleQuote(ticker); } }))
+    ]);
+  }
   function editSingleQuote(ticker) {
     const q = state.data.quotes[ticker];
     openForm({
@@ -595,7 +728,7 @@
       view.appendChild(h('div', { class: 'card' }, h('div', { class: 'empty', text: 'Nenhum cliente ainda. Toque em "Novo cliente".' })));
       return;
     }
-    const all = C.computeAll(d).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+    const all = calcAll().sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
     let filter = '';
     const list = h('div', { class: 'card tight' });
     function fill() {
@@ -606,7 +739,7 @@
       rows.forEach(r => list.appendChild(h('button', { class: 'list-item', onClick: () => go('#/client/' + encodeURIComponent(r.id)) },
         h('div', { class: 'main' },
           h('div', { class: 't1', text: r.name }),
-          h('div', { class: 't2', text: r.positions.length + (r.positions.length === 1 ? ' ação' : ' ações') + ' · caixa ' + C.fmtBRL(r.cash) })),
+          h('div', { class: 't2' }, r.positions.length + (r.positions.length === 1 ? ' ação' : ' ações') + ' · ', h('span', { class: signCls(r.dayPct), text: r.dayPct == null ? dayLabel() + ' —' : dayLabel() + ' ' + C.fmtPct(r.dayPct) }))),
         h('div', { class: 'right' },
           h('div', { class: 'v1 num', text: C.fmtBRL(r.total) }),
           h('div', { class: 'v2 num ' + signCls(r.vsBonus), text: r.vsBonus == null ? 'sem base de bônus' : C.fmtPct(r.vsBonus) + ' vs. bônus' })),
@@ -647,16 +780,18 @@
   }
 
   // ---------- CARTEIRA DO CLIENTE ----------
+  let openPos = null; // papel aberto na tabela da carteira ("clientId/TICKER")
   function viewClient(view, c) {
     const d = state.data;
-    const r = C.computeClient(c, d.quotes);
+    const r = calc(c);
 
     // bloco de resumo
     view.appendChild(h('div', { class: 'card' },
       h('div', { class: 'hero' },
         h('div', { class: 'label', text: 'Patrimônio total' }),
         h('div', { class: 'value num', text: C.fmtBRL(r.total) }),
-        h('div', { class: 'delta num ' + signCls(r.ret), text: r.ret == null ? 'Rentabilidade indefinida: defina o capital aportado em Editar' : 'Rentabilidade acumulada ' + C.fmtPct(r.ret) })),
+        h('div', { class: 'delta num ' + signCls(r.ret), text: r.ret == null ? 'Rentabilidade indefinida: defina o capital aportado em Editar' : 'Rentabilidade acumulada ' + C.fmtPct(r.ret) }),
+        h('div', { class: 'today num ' + signCls(r.day), text: r.day == null ? 'Variação do dia: aguardando preços' : 'Resultado ' + dayLabel() + ' ' + C.fmtSignedBRL(r.day) + ' (' + C.fmtPct(r.dayPct) + ')' })),
       h('div', { class: 'stats' },
         stat('Caixa', C.fmtBRL(r.cash)),
         stat('Investido', C.fmtBRL(r.invested), 'preço médio × cotas'),
@@ -670,28 +805,63 @@
       h('button', { class: 'btn', style: 'flex:none', text: '📷 Print', 'aria-label': 'Ler print com IA', onClick: () => printDialog(c) }),
       h('button', { class: 'btn', style: 'width:56px;flex:none', text: '•••', 'aria-label': 'Mais ações', onClick: () => clientMenu(c) })));
 
-    // tabela de posições
+    // tabela de posições: Papel · Peso · Hoje · Lucro · Valor, ordenável pelo cabeçalho;
+    // tocar na linha abre cotas, preço médio, cotação e o atalho para editar.
     const tbl = h('div', { class: 'card tight' });
     if (!r.positions.length) tbl.appendChild(h('div', { class: 'empty', text: 'Sem ações na carteira. Use "+ Ação" ou registre uma compra.' }));
     else {
+      const ws = ui.walletSort && ui.walletSort.k ? ui.walletSort : { k: 'value', dir: -1 };
+      const val = {
+        ticker: p => p.ticker, weight: p => Math.abs(p.weight || 0), day: p => p.dayPct == null ? -Infinity : p.dayPct,
+        profit: p => p.profitPct, value: p => Math.abs(p.value)
+      };
+      const rows = r.positions.slice().sort((a, b) => {
+        const x = val[ws.k](a), y = val[ws.k](b);
+        return (typeof x === 'string' ? x.localeCompare(y) : x - y) * ws.dir;
+      });
+      const th = (k, label, cls) => h('th', { class: cls || '' }, h('button', { class: 'th-sort' + (ws.k === k ? ' on' : ''), type: 'button', onClick: () => {
+        ui.walletSort = { k, dir: ws.k === k ? -ws.dir : (k === 'ticker' ? 1 : -1) }; persistUI(); render();
+      } }, label, ws.k === k ? (ws.dir < 0 ? ' ▾' : ' ▴') : ''));
       const tbody = h('tbody');
-      const money = n => C.fmtNum(n);
-      const signed = n => (n > 0 ? '+' : n < 0 ? '-' : '') + C.fmtNum(Math.abs(n));
-      r.positions.forEach(p => {
-        tbody.appendChild(h('tr', { class: 'clickable', onClick: () => positionDialog(c, p.ticker) },
+      const pct1 = x => x == null ? '—' : C.fmtPct(x, 1);
+      rows.forEach(p => {
+        const key = c.id + '/' + p.ticker;
+        const open = openPos === key;
+        tbody.appendChild(h('tr', { class: 'clickable' + (open ? ' open' : ''), onClick: () => { openPos = open ? null : key; render(); } },
           h('td', {}, h('div', { class: 'tk' }, p.ticker,
             p.short ? h('span', { class: 'tag', text: 'vendida' }) : null,
             p.hasQuote ? null : h('span', { class: 'tag warn', text: 'sem cotação' }),
-            h('small', {}, h('span', { class: 'qty-inline', text: C.fmtInt(p.qty) + ' cotas · ' }), 'PM ' + C.fmtNum(p.avgPrice), p.hasQuote ? h('span', { class: 'price-inline', text: ' · cot. ' + C.fmtNum(p.price) }) : null))),
-          h('td', { class: 'num col-qty', text: C.fmtInt(p.qty) }),
-          h('td', { class: 'num', text: money(p.value) }),
-          h('td', { class: 'num', text: money(p.invested) }),
-          h('td', { class: 'num ' + signCls(p.profit) }, signed(p.profit), h('span', { class: 'sub ' + signCls(p.profit), text: C.fmtPct(p.profitPct) }))));
+            h('small', { text: C.fmtInt(p.qty) + ' cotas' }))),
+          h('td', { class: 'num', text: p.weight == null ? '—' : C.fmtPct(p.weight, 1).replace('+', '') }),
+          h('td', { class: 'num ' + signCls(p.day), text: pct1(p.dayPct) }),
+          h('td', { class: 'num ' + signCls(p.profit), text: pct1(p.profitPct) }),
+          h('td', { class: 'num', text: C.fmtInt(p.value) })));
+        if (open) tbody.appendChild(h('tr', { class: 'detail' }, h('td', { colspan: 5 },
+          h('div', { class: 'pos-detail' },
+            h('div', { class: 'kv' },
+              h('div', { text: 'Cotas' }), h('div', { class: 'num', text: C.fmtInt(p.qty) + (p.short ? ' (vendida)' : '') }),
+              h('div', { text: 'Preço médio' }), h('div', { class: 'num', text: C.fmtBRL(p.avgPrice) }),
+              h('div', { text: 'Cotação' }), h('div', { class: 'num', text: p.hasQuote ? C.fmtBRL(p.price) + (p.quoteAt ? ' · ' + C.fmtDateTime(p.quoteAt) : '') : 'sem cotação' }),
+              h('div', { text: 'Investido' }), h('div', { class: 'num', text: C.fmtBRL(p.invested) }),
+              h('div', { text: 'Lucro' }), h('div', { class: 'num ' + signCls(p.profit), text: C.fmtSignedBRL(p.profit) + ' (' + C.fmtPct(p.profitPct) + ')' }),
+              h('div', { text: 'Resultado ' + dayLabel() }), h('div', { class: 'num ' + signCls(p.day), text: p.day == null ? '—' : C.fmtSignedBRL(p.day) })),
+            h('div', { class: 'btn-row', style: 'margin:10px 0 0' },
+              h('button', { class: 'btn sm', text: 'Editar posição', onClick: e => { e.stopPropagation(); positionDialog(c, p.ticker); } }),
+              h('button', { class: 'btn sm', text: 'Quem mais tem', onClick: e => { e.stopPropagation(); tickerSheet(p.ticker); } }))))));
       });
-      tbl.appendChild(h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl' },
-        h('thead', {}, h('tr', {}, h('th', { text: 'Ação' }), h('th', { class: 'col-qty', text: 'Cotas' }), h('th', {}, 'Valor ', h('span', { class: 'unit', text: 'R$' })), h('th', {}, 'Investido ', h('span', { class: 'unit', text: 'R$' })), h('th', {}, 'Lucro ', h('span', { class: 'unit', text: 'R$' })))),
+      tbody.appendChild(h('tr', { class: 'cash-row' },
+        h('td', { text: 'Caixa' }),
+        h('td', { class: 'num', text: r.total ? C.fmtPct(r.cash / r.total, 1).replace('+', '') : '—' }),
+        h('td', {}), h('td', {}),
+        h('td', { class: 'num', text: C.fmtInt(r.cash) })));
+      tbl.appendChild(h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl wallet' },
+        h('thead', {}, h('tr', {}, th('ticker', 'Papel'), th('weight', 'Peso'), th('day', 'Hoje'), th('profit', 'Lucro'), th('value', 'Valor R$'))),
         tbody,
-        h('tfoot', {}, h('tr', {}, h('td', { text: 'Total' }), h('td', { class: 'col-qty' }), h('td', { class: 'num', text: money(r.stocks) }), h('td', { class: 'num', text: money(r.invested) }), h('td', { class: 'num ' + signCls(r.profit) }, signed(r.profit), h('span', { class: 'sub ' + signCls(r.profit), text: C.fmtPct(r.profitPct) })))))));
+        h('tfoot', {}, h('tr', {}, h('td', { text: 'Total' }), h('td', {}),
+          h('td', { class: 'num ' + signCls(r.day), text: pct1(r.dayPct) }),
+          h('td', { class: 'num ' + signCls(r.profit), text: pct1(r.profitPct) }),
+          h('td', { class: 'num', text: C.fmtInt(r.total) }))))));
+      if (r.dayPartial) tbl.appendChild(h('p', { class: 'small muted', style: 'padding:0 10px 10px', text: 'Alguns papéis ainda sem fechamento anterior: a variação do dia considera só os que têm.' }));
     }
     view.appendChild(tbl);
 
@@ -852,7 +1022,7 @@
     });
   }
   function txDialog(c) {
-    const r = C.computeClient(c, state.data.quotes);
+    const r = calc(c);
     openForm({
       title: 'Nova operação · ' + c.name,
       fields: [
@@ -1046,30 +1216,44 @@
   function viewPerformance(view) {
     const d = state.data;
     if (!d.clients.length) { view.appendChild(h('div', { class: 'card' }, h('div', { class: 'empty', text: 'Nenhum cliente ainda.' }))); return; }
-    const all = C.computeAll(d);
+    const q = quotesNow();
+    const rows = d.clients.map(c => {
+      const r = C.computeClient(c, q);
+      return Object.assign(r, { d7: C.periodReturn(c, r, 7), d30: C.periodReturn(c, r, 30) });
+    });
+    const num = x => x == null ? -Infinity : x;
     const sorters = {
       name: (a, b) => a.name.localeCompare(b.name, 'pt-BR'),
-      total: (a, b) => b.total - a.total,
-      ret: (a, b) => (b.ret == null ? -Infinity : b.ret) - (a.ret == null ? -Infinity : a.ret),
-      bonus: (a, b) => (b.vsBonus == null ? -Infinity : b.vsBonus) - (a.vsBonus == null ? -Infinity : a.vsBonus)
+      day: (a, b) => num(b.dayPct) - num(a.dayPct),
+      d7: (a, b) => num(b.d7) - num(a.d7),
+      d30: (a, b) => num(b.d30) - num(a.d30),
+      ret: (a, b) => num(b.ret) - num(a.ret),
+      bonus: (a, b) => num(b.vsBonus) - num(a.vsBonus)
     };
-    const labels = { name: 'Nome', total: 'Patrimônio', ret: 'Rentabilidade', bonus: 'vs. bônus' };
-    view.appendChild(h('div', { class: 'chips', style: 'margin-bottom:12px' },
-      Object.keys(labels).map(k => h('button', { class: 'chip' + (ui.perfSort === k ? ' on' : ''), text: labels[k], onClick: () => { ui.perfSort = k; persistUI(); render(); } }))));
-    all.sort(sorters[ui.perfSort] || sorters.name);
+    const key = sorters[ui.perfSort] ? ui.perfSort : 'ret';
+    rows.sort(sorters[key]);
+    const th = (k, label) => h('th', {}, h('button', { class: 'th-sort' + (key === k ? ' on' : ''), type: 'button', onClick: () => { ui.perfSort = k; persistUI(); render(); } }, label, key === k ? ' ▾' : ''));
+    // fundo colorido pela intensidade do resultado
+    const cell = v => {
+      if (v == null) return h('td', { class: 'num muted', text: '—' });
+      const a = Math.min(0.32, Math.abs(v) * (Math.abs(v) < 0.05 ? 3 : 1.2));
+      return h('td', { class: 'num heat ' + signCls(v), style: '--heat:' + a.toFixed(3), text: C.fmtPct(v, 1) });
+    };
     const tbody = h('tbody');
-    all.forEach(r => tbody.appendChild(h('tr', { class: 'clickable', onClick: () => go('#/client/' + encodeURIComponent(r.id)) },
-      h('td', {}, h('div', { class: 'tk' }, r.name, h('small', { text: r.positions.length + (r.positions.length === 1 ? ' ação' : ' ações') }))),
-      h('td', { class: 'num', text: C.fmtBRL(r.total) }),
-      h('td', { class: 'num ' + signCls(r.ret), text: C.fmtPct(r.ret) }),
-      h('td', { class: 'num ' + signCls(r.vsBonus), text: r.vsBonus == null ? '—' : C.fmtPct(r.vsBonus) }))));
-    const aum = all.reduce((s, r) => s + r.total, 0);
-    const cap = all.reduce((s, r) => s + r.capital, 0);
-    view.appendChild(h('div', { class: 'card tight' }, h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl' },
-      h('thead', {}, h('tr', {}, h('th', { text: 'Cliente' }), h('th', { text: 'Patrimônio' }), h('th', { text: 'Rentab.' }), h('th', { text: 'vs. bônus' }))),
+    rows.forEach(r => tbody.appendChild(h('tr', { class: 'clickable', onClick: () => go('#/client/' + encodeURIComponent(r.id)) },
+      h('td', {}, h('div', { class: 'tk' }, r.name, h('small', { text: 'R$ ' + compactBRL(r.total) }))),
+      cell(r.dayPct), cell(r.d7), cell(r.d30), cell(r.ret), cell(r.vsBonus))));
+    const aum = rows.reduce((s, r) => s + r.total, 0);
+    const cap = rows.reduce((s, r) => s + r.capital, 0);
+    const withDay = rows.filter(r => r.day != null);
+    const day = withDay.length ? withDay.reduce((s, r) => s + r.day, 0) : null;
+    view.appendChild(h('div', { class: 'card tight' }, h('div', { class: 'tbl-wrap' }, h('table', { class: 'tbl perf' },
+      h('thead', {}, h('tr', {}, th('name', 'Cliente'), th('day', 'Hoje'), th('d7', '7d'), th('d30', '30d'), th('ret', 'Acum.'), th('bonus', 'Bônus'))),
       tbody,
-      h('tfoot', {}, h('tr', {}, h('td', { text: all.length + ' clientes' }), h('td', { class: 'num', text: C.fmtBRL(aum) }), h('td', { class: 'num ' + signCls(aum - cap), text: cap > 0 ? C.fmtPct(aum / cap - 1) : '—' }), h('td', {})))))));
-    view.appendChild(h('p', { class: 'small muted', text: 'Rentabilidade acumulada = patrimônio total ÷ capital aportado − 1. "vs. bônus" compara o patrimônio de hoje com o valor da carteira no último bônus recebido.' }));
+      h('tfoot', {}, h('tr', {}, h('td', {}, h('div', { class: 'tk' }, 'Todos', h('small', { text: 'R$ ' + compactBRL(aum) }))),
+        cell(day != null && aum - day > 0 ? day / (aum - day) : null), h('td', {}), h('td', {}),
+        cell(cap > 0 ? aum / cap - 1 : null), h('td', {})))))));
+    view.appendChild(h('p', { class: 'small muted', text: 'Hoje: variação desde o fechamento anterior. 7d e 30d comparam com o ponto do gráfico daquela idade e aparecem quando o robô já tiver gravado o histórico. Acumulada = patrimônio ÷ capital aportado − 1. Bônus = patrimônio de hoje contra a carteira no último bônus. Toque no cabeçalho para ordenar e no cliente para abrir.' }));
   }
 
   // ---------- CONFIGURAÇÕES ----------
@@ -1082,7 +1266,8 @@
     // Serviço de cotações
     const q = {};
     const qCard = h('div', { class: 'card' }, h('h2', { text: 'Serviço de cotações' }),
-      h('p', { class: 'small dim', style: 'margin-bottom:10px', text: 'Com um serviço configurado, o botão "Atualizar cotações" na tela inicial busca todos os preços de uma vez. O padrão é a brapi.dev, que cobre ações, BDRs, ETFs e fundos imobiliários da B3: crie uma conta gratuita lá e cole o token abaixo. {TICKERS} e {TOKEN} são substituídos na hora da busca.' }));
+      h('p', { class: 'small dim', style: 'margin-bottom:10px', text: 'O fechamento é gravado sozinho todo dia útil às 18h30 por um robô no GitHub, que usa o token cadastrado lá. O token abaixo é o deste aparelho: com ele, o app mostra os preços ao vivo durante o pregão (sem gravar) e o botão "Atualizar cotações" busca tudo de uma vez. O padrão é a brapi.dev; {TICKERS} e {TOKEN} são substituídos na hora da busca.' }),
+      qp.remaining != null ? h('p', { class: 'small dim', style: 'margin-bottom:10px', text: 'Consultas restantes no plano: ' + C.fmtInt(qp.remaining) + (qp.remainingAt ? ' (em ' + C.fmtDateTime(qp.remainingAt) + ')' : '') + '. Abaixo de 2.000 o app para de buscar sozinho e deixa o saldo para o robô.' }) : null);
     q.url = h('input', { type: 'text', value: qp.url, autocapitalize: 'off', autocorrect: 'off', spellcheck: false });
     qCard.appendChild(h('div', { class: 'field' }, h('label', { text: 'Endereço' }), q.url));
     q.token = h('input', { type: 'password', value: qp.token, placeholder: 'token do serviço', autocapitalize: 'off', autocorrect: 'off', spellcheck: false });
@@ -1673,7 +1858,10 @@
     setupUpdates();
     if (!pinCfg.get()) showLock('setup'); else showLock('unlock');
     render();
-    syncFromRemote({});
+    Promise.resolve(syncFromRemote({})).catch(() => { }).then(() => refreshLive(false));
+    // preços ao vivo: ao voltar para o app e, com ele aberto, a cada minuto confere se já é hora
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshLive(false); });
+    setInterval(() => { if (!document.hidden) refreshLive(false); }, 60 * 1000);
   }
   init();
 })();

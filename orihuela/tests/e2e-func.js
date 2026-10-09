@@ -5,7 +5,7 @@ const OUT = process.env.OUT || require('os').tmpdir();
 const BASE = process.env.BASE || 'http://127.0.0.1:8765/orihuela/';
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--no-sandbox'] });
+  const browser = await chromium.launch({ executablePath: process.env.PW_CHROME || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--no-sandbox'] });
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: false, hasTouch: true, locale: 'pt-BR' });
   const page = await ctx.newPage();
   const errors = [];
@@ -26,6 +26,9 @@ const BASE = process.env.BASE || 'http://127.0.0.1:8765/orihuela/';
   await tab('Cotações');
   await page.waitForSelector('.quote-row');
   await page.click('.quote-row:has-text("BOVA11")');
+  // a folha do papel mostra quem tem; o preço se corrige por ela
+  console.log('Folha do papel:', (await page.textContent('.sheet')).replace(/\s+/g, ' ').slice(0, 160));
+  await page.click('.sheet button:has-text("Corrigir cotação")');
   await page.waitForSelector('.sheet input[inputmode="decimal"]');
   await page.fill('.sheet input[inputmode="decimal"]', '185,00');
   await page.click('.sheet button[type="submit"]');

@@ -5,7 +5,7 @@ const OUT = process.env.OUT || require('os').tmpdir();
 const BASE = process.env.BASE || 'http://127.0.0.1:8765/orihuela/';
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--no-sandbox'] });
+  const browser = await chromium.launch({ executablePath: process.env.PW_CHROME || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--no-sandbox'] });
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: false, hasTouch: true, locale: 'pt-BR' });
   const page = await ctx.newPage();
   const errors = [];
@@ -26,6 +26,8 @@ const BASE = process.env.BASE || 'http://127.0.0.1:8765/orihuela/';
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ results }) });
   });
 
+  // domingo: fora do pregão, o app não busca preços ao vivo sozinho e a contagem de chamadas fica limpa
+  await page.clock.setFixedTime(new Date('2026-10-11T12:00:00-03:00'));
   await page.goto(BASE, { waitUntil: 'networkidle' });
   await page.waitForSelector('.lock');
   for (const k of '1234') await page.click(`.keypad button:text-is("${k}")`);
@@ -45,7 +47,8 @@ const BASE = process.env.BASE || 'http://127.0.0.1:8765/orihuela/';
   for (const k of '1234') await page.click(`.keypad button:text-is("${k}")`);
   await page.waitForSelector('.tabbar button');
 
-  // 1) um toque: busca tudo
+  // 1) na aba Cotações, um toque busca tudo
+  await page.click('.tabbar button:has-text("Cotações")');
   await page.click('#actionbar button:has-text("Atualizar cotações")');
   await page.waitForSelector('.quote-row input');
   await page.waitForSelector('.banner');
