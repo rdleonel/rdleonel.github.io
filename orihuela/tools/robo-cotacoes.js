@@ -7,8 +7,13 @@
  * 1. Busca na brapi a cotação de cada papel que está em alguma carteira (um papel por
  *    consulta, que é o que o plano gratuito permite), com o fechamento anterior.
  * 2. Grava as cotações em orihuela/data.json usando o mesmo core.js do app e do CLI.
- * 3. Registra o ponto do pregão no gráfico de todos os clientes. A data do ponto é a do
- *    pregão informado pela brapi, então rodar num feriado só regrava o ponto do último pregão.
+ * 3. Registra o ponto do pregão no gráfico de todos os clientes, com a data de Brasília do
+ *    momento da execução (antes das 6h conta como o dia anterior, para o caso de o GitHub
+ *    atrasar o agendamento até depois da meia-noite).
+ *
+ * Feriado ou dia sem pregão: a brapi devolve os mesmos preços do último fechamento (com o
+ * horário de agora). Se nenhum preço mudou em relação ao que já está gravado, o robô não
+ * grava nada.
  *
  * Sai com código 0 mesmo se alguns papéis faltarem (eles são listados); sai com erro só se
  * nada vier, para o workflow não gravar um arquivo sem mudança real.
@@ -65,17 +70,22 @@ async function fetchOne(ticker) {
       failed.push(t + ' (' + r.error + ')');
       if (r.fatal) { console.error('Token recusado pela brapi. Confira o secret BRAPI_TOKEN.'); process.exit(1); }
     } else { got[t] = { price: r.price, prev: r.prev, at: r.at }; if (r.remaining != null) remaining = r.remaining; }
-    await sleep(250);
+    await sleep(process.env.ROBO_SEM_PAUSA ? 0 : 250);
   }
   const n = Object.keys(got).length;
   console.log('Cotações: ' + n + ' de ' + wanted.length + (failed.length ? ' · faltaram: ' + failed.join(', ') : ''));
   if (remaining != null) console.log('Consultas restantes no plano: ' + remaining);
   if (!n) { console.error('Nenhuma cotação recebida; nada foi gravado.'); process.exit(1); }
 
-  // data do pregão = a mais comum entre os horários informados
-  const count = {};
-  Object.values(got).forEach(q => { const d = C.tradingDate(q.at); if (d) count[d] = (count[d] || 0) + 1; });
-  const session = Object.keys(count).sort((a, b) => count[b] - count[a] || (a < b ? 1 : -1))[0] || C.localDateISO();
+  // sem pregão novo (feriado, fim de semana): todos os preços iguais aos já gravados
+  const changed = Object.keys(got).filter(t => !data.quotes[t] || Math.abs(data.quotes[t].price - got[t].price) > 1e-9);
+  if (!changed.length) { console.log('Sem pregão novo: os ' + n + ' preços são iguais aos do último fechamento gravado. Nada gravado.'); return; }
+  console.log(changed.length + ' de ' + n + ' preços mudaram desde o último fechamento gravado.');
+
+  // data do pregão = data de Brasília de agora; madrugada conta como o dia anterior
+  const sp = new Date(Date.now() - 3 * 3600 * 1000);
+  if (sp.getUTCHours() < 6) sp.setUTCDate(sp.getUTCDate() - 1);
+  const session = sp.toISOString().slice(0, 10);
 
   C.setQuotes(data, got);
   C.snapshotAll(data, session);
