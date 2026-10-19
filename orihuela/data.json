@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-19T16:13:47.502Z",
+  "updatedAt": "2026-10-19T18:43:23.628Z",
   "quotes": {
     "INBR32": {
       "price": 33,
@@ -1042,7 +1042,7 @@
     {
       "id": "c_mvfgclq638jbq",
       "name": "Luanna",
-      "cash": 1394,
+      "cash": 569,
       "capital": 200000,
       "bonusBase": {
         "value": 200000,
@@ -1061,13 +1061,18 @@
         },
         {
           "ticker": "ROXO34",
-          "qty": 4000,
+          "qty": 1500,
           "avgPrice": 12.35
         },
         {
           "ticker": "MUTC34",
           "qty": 68,
           "avgPrice": 779.5
+        },
+        {
+          "ticker": "COGN3",
+          "qty": 10000,
+          "avgPrice": 3.14
         }
       ],
       "transactions": [
@@ -1156,6 +1161,39 @@
           "qty": 68,
           "price": 779.5,
           "value": 53006
+        },
+        {
+          "id": "t_mvflrcxaxj5ew",
+          "date": "2026-10-19",
+          "type": "buy",
+          "note": "ordem executada 15:40",
+          "prev": {
+            "qty": 0,
+            "avgPrice": 0,
+            "cash": 1394
+          },
+          "ticker": "COGN3",
+          "qty": 10000,
+          "price": 3.14,
+          "value": 31400
+        },
+        {
+          "id": "t_mvflrcz0926c5",
+          "date": "2026-10-19",
+          "type": "sell",
+          "note": "ordem executada 15:41",
+          "prev": {
+            "qty": 4000,
+            "avgPrice": 12.35,
+            "cash": -30006
+          },
+          "ticker": "ROXO34",
+          "qty": 2500,
+          "price": 12.23,
+          "value": 30575,
+          "avgPrice": 12.35,
+          "result": -300,
+          "resultPct": -0.009716599190283337
         }
       ],
       "history": []
