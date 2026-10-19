@@ -114,6 +114,19 @@ Tudo é editável no próprio app: criar, renomear e excluir clientes, ajustar c
 preço médio, caixa, capital e base do bônus, registrar operações, adicionar ou apagar
 pontos do histórico.
 
+## Comissão
+
+Comissão = percentual × o quanto o patrimônio passou da base do último bônus (zero quando
+está abaixo). O percentual padrão vale para todos (começa em 10%) e cada cliente pode ter o
+seu: em Ajustes → Comissões, no ••• da carteira → Comissão, ou tocando no quadro
+"Comissão" da carteira. O painel inicial soma a comissão a receber de todos os clientes
+com base do bônus, e o cartão de cada cliente mostra a dele. Ao cobrar, registre a
+operação "Bônus" no cliente: a base sobe para o patrimônio daquele dia e a comissão zera.
+
+Os percentuais ficam **só no aparelho** (localStorage, chave `orihuela.fees`), como os
+tokens: o `data.json` é público e o acordo com cada cliente não deve ir para lá. Em outro
+aparelho, é preciso cadastrar de novo.
+
 ## Definições
 
 - Patrimônio total = Σ (cotas × cotação) + caixa.

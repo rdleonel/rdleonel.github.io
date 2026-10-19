@@ -23,7 +23,10 @@ As capturas de tela vão para um diretório temporário, cujo caminho é impress
 | `e2e-batch.js` | Busca em lotes contra um serviço que limita papéis por chamada: o lote encolhe, a lista completa, o tamanho é lembrado, token inválido não vira 22 chamadas |
 | `unit-vision.js` | Leitura de prints por IA, em Node puro (sem navegador nem rede): montagem do pedido (imagem, schema, cabeçalhos), leitura da resposta e erros, preço médio refinado, plano de conferência com avisos e aplicação de posições e operações |
 | `e2e-live.js` | Preços ao vivo: busca sozinha no pregão (relógio simulado), aprende o limite de papéis por consulta pela resposta da brapi, mostra o resultado do dia no painel, na carteira e na lista, não grava nada, ordenação e detalhe da tabela da carteira, tabela de desempenho, reaproveita a busca ao reabrir e força com o botão |
+| `e2e-fee.js` | Comissão: padrão de 10% sobre o ganho acima da base do bônus, percentual próprio de um cliente, padrão alterado em Ajustes, nada disso nos dados sincronizados |
 | `e2e-update.js` | Atualização do app: aviso de versão nova, instalação, dados e PIN preservados, cache antigo removido |
+
+Os testes (menos o de atualização do app) carregam `tests/fixture-data.json`, uma cópia congelada dos dados de 09/10/2026, no lugar do `data.json` real, que muda todo dia com o robô; assim o resultado não depende do dia em que rodam.
 
 Os testes de cotações usam um serviço simulado (as chamadas a `brapi.dev` são
 interceptadas), então não dependem de rede nem de token.

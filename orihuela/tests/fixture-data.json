@@ -1,0 +1,809 @@
+{
+  "version": 1,
+  "updatedAt": "2026-10-09T21:36:52.178Z",
+  "quotes": {
+    "INBR32": {
+      "price": 38.35,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 36.3
+    },
+    "DASA3": {
+      "price": 5.22,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 4.89
+    },
+    "BPAC11": {
+      "price": 81.5,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 77.47
+    },
+    "ROMI3": {
+      "price": 7.86,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 7.45
+    },
+    "BOVA11": {
+      "price": 205.55,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 203.08
+    },
+    "M1TA34": {
+      "price": 127.78,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 129.31
+    },
+    "MSFT34": {
+      "price": 110.94,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 109.68
+    },
+    "NVDC34": {
+      "price": 23.29,
+      "at": "2026-09-11T18:00:00.000Z"
+    },
+    "BIDU34": {
+      "price": 30.5,
+      "at": "2026-10-09T20:45:30.000Z",
+      "prev": 30.18
+    },
+    "BABA34": {
+      "price": 20,
+      "at": "2026-09-11T18:00:00.000Z"
+    },
+    "TSLA34": {
+      "price": 59.77,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 58.75
+    },
+    "SPCX34": {
+      "price": 51.44,
+      "at": "2026-09-11T18:00:00.000Z"
+    },
+    "PRIO3": {
+      "price": 64.45,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 63.75
+    },
+    "HASH11": {
+      "price": 53.4,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 53.15
+    },
+    "SMTO3": {
+      "price": 20.53,
+      "at": "2026-09-11T18:00:00.000Z"
+    },
+    "CSAN3": {
+      "price": 3.7,
+      "at": "2026-09-11T18:00:00.000Z"
+    },
+    "JHSF3": {
+      "price": 14.59,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 13.31
+    },
+    "IVVB11": {
+      "price": 439.25,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 440.35
+    },
+    "MUTC34": {
+      "price": 852.68,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 867.82
+    },
+    "ROXO34": {
+      "price": 13.28,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 12.94
+    },
+    "COGN3": {
+      "price": 3.18,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 2.93
+    },
+    "VAMO3": {
+      "price": 6.86,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 6.5
+    },
+    "GMAT3": {
+      "price": 5.7,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 5.55
+    },
+    "M2RV34": {
+      "price": 136.3,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 136.6
+    },
+    "AMZO34": {
+      "price": 65.37,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 64.31
+    },
+    "GOGL34": {
+      "price": 146.5,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 145.7
+    },
+    "ITLC34": {
+      "price": 88.2,
+      "at": "2026-09-11T18:00:00.000Z"
+    },
+    "BRKM5": {
+      "price": 4.37,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 4.38
+    },
+    "MAXR11": {
+      "price": 53.4,
+      "at": "2026-10-09T21:18:30.000Z",
+      "prev": 52.01
+    },
+    "RNGO11": {
+      "price": 53.89,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 55.2
+    },
+    "XPCM11": {
+      "price": 7.8,
+      "at": "2026-10-09T21:30:30.000Z",
+      "prev": 7.8
+    },
+    "CVCB3": {
+      "price": 1.72,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 1.68
+    },
+    "VULC3": {
+      "price": 16.52,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 15.46
+    },
+    "EALT4": {
+      "price": 12.4,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 12.15
+    },
+    "PETR4": {
+      "price": 56,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 55.48
+    },
+    "CAMB3": {
+      "price": 8.19,
+      "at": "2026-10-09T21:30:30.000Z",
+      "prev": 8
+    },
+    "BBAS3": {
+      "price": 24.64,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 24.26
+    },
+    "RIAA3": {
+      "price": 10.77,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 9.45
+    },
+    "TUPY3": {
+      "price": 20.4,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 19.68
+    },
+    "CMIN3": {
+      "price": 5.01,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 5.06
+    },
+    "AALR3": {
+      "price": 3.03,
+      "at": "2026-10-09T21:29:30.000Z",
+      "prev": 3.06
+    },
+    "GGBR4": {
+      "price": 25.69,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 24.77
+    },
+    "BBSE3": {
+      "price": 40.82,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 40.81
+    },
+    "SAPR11": {
+      "price": 45.07,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 43.05
+    },
+    "ITSA4": {
+      "price": 16.31,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 16.05
+    },
+    "MOVI3": {
+      "price": 18.94,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 16.73
+    },
+    "PRNR3": {
+      "price": 22.6,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 21.28
+    },
+    "LREN3": {
+      "price": 15.06,
+      "at": "2026-10-09T21:31:30.000Z",
+      "prev": 13.5
+    }
+  },
+  "clients": [
+    {
+      "id": "c_mtxrxe81pmmel",
+      "name": "Felipe",
+      "cash": 0,
+      "capital": 184689.44,
+      "bonusBase": null,
+      "positions": [
+        {
+          "ticker": "INBR32",
+          "qty": 4237,
+          "avgPrice": 20.69358
+        },
+        {
+          "ticker": "DASA3",
+          "qty": 34600,
+          "avgPrice": 2.755925
+        },
+        {
+          "ticker": "BPAC11",
+          "qty": 1000,
+          "avgPrice": 21.87
+        },
+        {
+          "ticker": "ROMI3",
+          "qty": -10,
+          "avgPrice": 12.146
+        },
+        {
+          "ticker": "BOVA11",
+          "qty": -182,
+          "avgPrice": 110.4
+        }
+      ],
+      "transactions": [],
+      "history": [
+        {
+          "date": "2026-09-11",
+          "total": 238051.92,
+          "invested": 184689.45,
+          "cash": 0,
+          "capital": 184689.44,
+          "ret": 0.2889308668649382
+        },
+        {
+          "date": "2026-09-21",
+          "total": 232440.37,
+          "invested": 184689.45,
+          "cash": 0,
+          "capital": 184689.44,
+          "ret": 0.25854715894964
+        },
+        {
+          "date": "2026-10-01",
+          "total": 275736.44,
+          "invested": 184689.45,
+          "cash": 0,
+          "capital": 184689.44,
+          "ret": 0.49297350189593936
+        },
+        {
+          "date": "2026-10-09",
+          "total": 387112.25,
+          "invested": 184689.45,
+          "cash": 0,
+          "capital": 184689.44,
+          "ret": 1.0960172384517493
+        }
+      ]
+    },
+    {
+      "id": "c_mtxtv5bv9c4mt",
+      "name": "RD",
+      "cash": 0,
+      "capital": 539156.07,
+      "bonusBase": null,
+      "positions": [
+        {
+          "ticker": "ROXO34",
+          "qty": 23080,
+          "avgPrice": 13.264718
+        },
+        {
+          "ticker": "COGN3",
+          "qty": 84900,
+          "avgPrice": 2.109397
+        },
+        {
+          "ticker": "AMZO34",
+          "qty": 1089,
+          "avgPrice": 66.079733
+        },
+        {
+          "ticker": "GMAT3",
+          "qty": 13200,
+          "avgPrice": 4.464911
+        },
+        {
+          "ticker": "M2RV34",
+          "qty": 500,
+          "avgPrice": 111.35
+        },
+        {
+          "ticker": "VAMO3",
+          "qty": 16500,
+          "avgPrice": 2.48
+        },
+        {
+          "ticker": "MAXR11",
+          "qty": 38,
+          "avgPrice": 49.95
+        },
+        {
+          "ticker": "BRKM5",
+          "qty": 200,
+          "avgPrice": 33.8
+        },
+        {
+          "ticker": "RNGO11",
+          "qty": 1,
+          "avgPrice": 52.89
+        },
+        {
+          "ticker": "XPCM11",
+          "qty": 3,
+          "avgPrice": 7.93
+        },
+        {
+          "ticker": "PRIO3",
+          "qty": -4,
+          "avgPrice": 63.8
+        },
+        {
+          "ticker": "BOVA11",
+          "qty": -609,
+          "avgPrice": 182.42
+        },
+        {
+          "ticker": "IVVB11",
+          "qty": -1456,
+          "avgPrice": 443.99498
+        },
+        {
+          "ticker": "INBR32",
+          "qty": 10337,
+          "avgPrice": 29.507162
+        },
+        {
+          "ticker": "MUTC34",
+          "qty": 360,
+          "avgPrice": 751.318222
+        },
+        {
+          "ticker": "CVCB3",
+          "qty": 1,
+          "avgPrice": 6.72
+        }
+      ],
+      "transactions": [],
+      "history": [
+        {
+          "date": "2026-09-11",
+          "total": 579481.17,
+          "invested": 539156.08,
+          "cash": 0,
+          "capital": 539156.07,
+          "ret": 0.07479300010477496
+        },
+        {
+          "date": "2026-09-21",
+          "total": 573141.33,
+          "invested": 539156.08,
+          "cash": 0,
+          "capital": 539156.07,
+          "ret": 0.06303417858209426
+        },
+        {
+          "date": "2026-10-01",
+          "total": 578845.2,
+          "invested": 539156.08,
+          "cash": 0,
+          "capital": 539156.07,
+          "ret": 0.07361343441797863
+        },
+        {
+          "date": "2026-10-09",
+          "total": 845637.54,
+          "invested": 539156.08,
+          "cash": 0,
+          "capital": 539156.07,
+          "ret": 0.5684466651743343
+        }
+      ]
+    },
+    {
+      "id": "c_mubiiskvubz22",
+      "name": "FRAN",
+      "cash": 0,
+      "capital": 90949.72,
+      "bonusBase": null,
+      "positions": [
+        {
+          "ticker": "MUTC34",
+          "qty": 39,
+          "avgPrice": 788.16
+        },
+        {
+          "ticker": "GOGL34",
+          "qty": 202,
+          "avgPrice": 145.77
+        },
+        {
+          "ticker": "TSLA34",
+          "qty": 247,
+          "avgPrice": 61
+        },
+        {
+          "ticker": "INBR32",
+          "qty": 464,
+          "avgPrice": 34.47
+        },
+        {
+          "ticker": "M1TA34",
+          "qty": 93,
+          "avgPrice": 118.9566
+        },
+        {
+          "ticker": "BOVA11",
+          "qty": -65,
+          "avgPrice": 174.74
+        }
+      ],
+      "transactions": [],
+      "history": [
+        {
+          "date": "2026-09-21",
+          "total": 92305.29,
+          "invested": 90949.72,
+          "cash": 0,
+          "capital": 90949.72,
+          "ret": 0.01490460883222089
+        },
+        {
+          "date": "2026-10-01",
+          "total": 94512.78,
+          "invested": 90949.72,
+          "cash": 0,
+          "capital": 90949.72,
+          "ret": 0.03917615139441888
+        },
+        {
+          "date": "2026-10-09",
+          "total": 93927.9,
+          "invested": 90949.72,
+          "cash": 0,
+          "capital": 90949.72,
+          "ret": 0.03274534545021135
+        }
+      ]
+    },
+    {
+      "id": "c_mubjqigci5a3i",
+      "name": "GABRIEL",
+      "cash": 0,
+      "capital": 525005.72,
+      "bonusBase": null,
+      "positions": [
+        {
+          "ticker": "INBR32",
+          "qty": 12313,
+          "avgPrice": 32.984
+        },
+        {
+          "ticker": "MUTC34",
+          "qty": 234,
+          "avgPrice": 783.97
+        },
+        {
+          "ticker": "TSLA34",
+          "qty": 2311,
+          "avgPrice": 60.11
+        },
+        {
+          "ticker": "MSFT34",
+          "qty": 1200,
+          "avgPrice": 96.15
+        },
+        {
+          "ticker": "IVVB11",
+          "qty": -721,
+          "avgPrice": 442.26
+        }
+      ],
+      "transactions": [],
+      "history": [
+        {
+          "date": "2026-09-21",
+          "total": 485292.08,
+          "invested": 525005.72,
+          "cash": 0,
+          "capital": 525005.72,
+          "ret": -0.07564420440981101
+        },
+        {
+          "date": "2026-10-01",
+          "total": 496071.38,
+          "invested": 525005.72,
+          "cash": 0,
+          "capital": 525005.72,
+          "ret": -0.05511242810840222
+        },
+        {
+          "date": "2026-10-09",
+          "total": 626287.89,
+          "invested": 525005.72,
+          "cash": 0,
+          "capital": 525005.72,
+          "ret": 0.19291631717841096
+        }
+      ]
+    },
+    {
+      "id": "c_mupz17opytzcs",
+      "name": "Nil",
+      "cash": 3307.9,
+      "capital": 472180.39,
+      "bonusBase": {
+        "value": 700000,
+        "date": "2026-01-31"
+      },
+      "positions": [
+        {
+          "ticker": "MUTC34",
+          "qty": 198,
+          "avgPrice": 764.12
+        },
+        {
+          "ticker": "INBR32",
+          "qty": 6745,
+          "avgPrice": 24.89965
+        },
+        {
+          "ticker": "ROXO34",
+          "qty": 16000,
+          "avgPrice": 11.25043
+        },
+        {
+          "ticker": "DASA3",
+          "qty": 40800,
+          "avgPrice": 3.12601
+        },
+        {
+          "ticker": "PRIO3",
+          "qty": 287,
+          "avgPrice": 48.38355
+        },
+        {
+          "ticker": "BIDU34",
+          "qty": 100,
+          "avgPrice": 49.44024
+        },
+        {
+          "ticker": "IVVB11",
+          "qty": -720,
+          "avgPrice": 452.29
+        },
+        {
+          "ticker": "VULC3",
+          "qty": 10000,
+          "avgPrice": 14.88992
+        }
+      ],
+      "transactions": [],
+      "history": [
+        {
+          "date": "2026-10-01",
+          "total": 569782.58,
+          "invested": 468872.49,
+          "cash": 3307.9,
+          "capital": 472180.39,
+          "ret": 0.20670530175977886
+        },
+        {
+          "date": "2026-10-09",
+          "total": 726752.44,
+          "invested": 468872.49,
+          "cash": 3307.9,
+          "capital": 472180.39,
+          "ret": 0.5391415132678425
+        }
+      ]
+    },
+    {
+      "id": "c_mupz8o4vvbnhg",
+      "name": "P",
+      "cash": 8463.97,
+      "capital": 4396345.51,
+      "bonusBase": {
+        "value": 6805000,
+        "date": "2026-01-31"
+      },
+      "positions": [
+        {
+          "ticker": "MUTC34",
+          "qty": 2417,
+          "avgPrice": 791.05
+        },
+        {
+          "ticker": "ROXO34",
+          "qty": 188140,
+          "avgPrice": 11.67283
+        },
+        {
+          "ticker": "INBR32",
+          "qty": 49605,
+          "avgPrice": 27.48
+        },
+        {
+          "ticker": "GOGL34",
+          "qty": 6950,
+          "avgPrice": 147.71064
+        },
+        {
+          "ticker": "GMAT3",
+          "qty": 136700,
+          "avgPrice": 4.61538
+        },
+        {
+          "ticker": "TSLA34",
+          "qty": 5855,
+          "avgPrice": 57.2454
+        },
+        {
+          "ticker": "COGN3",
+          "qty": 100000,
+          "avgPrice": 2.11
+        },
+        {
+          "ticker": "JHSF3",
+          "qty": 15000,
+          "avgPrice": 7.24997
+        },
+        {
+          "ticker": "DASA3",
+          "qty": 34100,
+          "avgPrice": 2.91219
+        },
+        {
+          "ticker": "HASH11",
+          "qty": 2196,
+          "avgPrice": 60.44549
+        },
+        {
+          "ticker": "EALT4",
+          "qty": 9000,
+          "avgPrice": 10.82026
+        },
+        {
+          "ticker": "PETR4",
+          "qty": 1464,
+          "avgPrice": 33.93418
+        },
+        {
+          "ticker": "CAMB3",
+          "qty": 8200,
+          "avgPrice": 10.01548
+        },
+        {
+          "ticker": "BBAS3",
+          "qty": 1698,
+          "avgPrice": 21.45903
+        },
+        {
+          "ticker": "RIAA3",
+          "qty": 3100,
+          "avgPrice": 6.75824
+        },
+        {
+          "ticker": "TUPY3",
+          "qty": 1100,
+          "avgPrice": 24.96476
+        },
+        {
+          "ticker": "CMIN3",
+          "qty": 1000,
+          "avgPrice": 3.85008
+        },
+        {
+          "ticker": "AALR3",
+          "qty": 1500,
+          "avgPrice": 14.13308
+        },
+        {
+          "ticker": "GGBR4",
+          "qty": 126,
+          "avgPrice": 11.76171
+        },
+        {
+          "ticker": "BBSE3",
+          "qty": 77,
+          "avgPrice": 27.58908
+        },
+        {
+          "ticker": "SAPR11",
+          "qty": 60,
+          "avgPrice": 20.0236
+        },
+        {
+          "ticker": "ROMI3",
+          "qty": 1,
+          "avgPrice": 11.60426
+        },
+        {
+          "ticker": "ITSA4",
+          "qty": -5,
+          "avgPrice": 14.38
+        },
+        {
+          "ticker": "MOVI3",
+          "qty": -16,
+          "avgPrice": 10.1
+        },
+        {
+          "ticker": "PRNR3",
+          "qty": -18,
+          "avgPrice": 18.71
+        },
+        {
+          "ticker": "LREN3",
+          "qty": -38,
+          "avgPrice": 11.41
+        },
+        {
+          "ticker": "M1TA34",
+          "qty": -145,
+          "avgPrice": 136.21
+        },
+        {
+          "ticker": "BOVA11",
+          "qty": -5478,
+          "avgPrice": 184.41
+        },
+        {
+          "ticker": "IVVB11",
+          "qty": -6502,
+          "avgPrice": 452.29
+        }
+      ],
+      "transactions": [],
+      "history": [
+        {
+          "date": "2026-10-01",
+          "total": 4877850.62,
+          "invested": 4387881.56,
+          "cash": 8463.97,
+          "capital": 4396345.51,
+          "ret": 0.10952394640156493
+        },
+        {
+          "date": "2026-10-09",
+          "total": 5824835.92,
+          "invested": 4387881.56,
+          "cash": 8463.97,
+          "capital": 4396345.51,
+          "ret": 0.3249267844737711
+        }
+      ]
+    }
+  ]
+}

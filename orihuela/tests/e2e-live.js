@@ -1,13 +1,14 @@
 // Preços ao vivo (v2): busca sozinha no pregão, variação do dia, nada gravado, limite do plano.
 const { chromium } = require('playwright');
+const { DATA, useFixture, contextOptions } = require('./fixture');
 const path = require('path');
 const OUT = process.env.OUT || require('os').tmpdir();
 const BASE = process.env.BASE || 'http://127.0.0.1:8765/orihuela/';
-const DATA = require('../data.json');
 
 (async () => {
   const browser = await chromium.launch({ executablePath: process.env.PW_CHROME || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--no-sandbox'] });
-  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, locale: 'pt-BR' });
+  const ctx = await browser.newContext(Object.assign({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, locale: 'pt-BR' }, contextOptions));
+  await useFixture(ctx);
   const page = await ctx.newPage();
   const errors = [], fails = [];
   const check = (ok, msg) => { console.log((ok ? 'ok   ' : 'FALHA ') + msg); if (!ok) fails.push(msg); };
@@ -26,11 +27,11 @@ const DATA = require('../data.json');
     const t = tickers[0]; const saved = DATA.quotes[t] ? DATA.quotes[t].price : 10;
     const price = Math.round(saved * 1.1 * 100) / 100;
     await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'ratelimit-remaining': '9000', 'access-control-expose-headers': 'ratelimit-remaining' },
-      body: JSON.stringify({ results: [{ symbol: t, regularMarketPrice: price, regularMarketChange: Math.round((price - saved) * 100) / 100, regularMarketPreviousClose: price, regularMarketTime: '2026-10-07T17:00:00.000Z' }] }) });
+      body: JSON.stringify({ results: [{ symbol: t, regularMarketPrice: price, regularMarketChange: Math.round((price - saved) * 100) / 100, regularMarketPreviousClose: price, regularMarketTime: '2026-10-14T17:00:00.000Z' }] }) });
   });
 
-  // quarta-feira, 14h de Brasília: pregão aberto
-  await page.clock.setFixedTime(new Date('2026-10-07T14:00:00-03:00'));
+  // quarta-feira depois da data dos dados congelados, 14h de Brasília: pregão aberto
+  await page.clock.setFixedTime(new Date('2026-10-14T14:00:00-03:00'));
   const pin = async () => { for (const k of '1234') await page.click(`.keypad button:text-is("${k}")`); };
   await page.goto(BASE, { waitUntil: 'networkidle' });
   await page.evaluate(() => localStorage.setItem('orihuela.quotes', JSON.stringify({ url: 'https://brapi.dev/api/quote/{TICKERS}?token={TOKEN}', token: 'tok', sep: ',', auth: '', batch: 20 })));
