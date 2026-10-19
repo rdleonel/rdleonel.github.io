@@ -1,12 +1,14 @@
 // Atualização de cotações: busca automática (serviço simulado), print e falha de rede.
 const { chromium } = require('playwright');
+const { DATA, useFixture, contextOptions } = require('./fixture');
 const path = require('path');
 const OUT = process.env.OUT || require('os').tmpdir();
 const BASE = process.env.BASE || 'http://127.0.0.1:8765/orihuela/';
 
 (async () => {
   const browser = await chromium.launch({ executablePath: process.env.PW_CHROME || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--no-sandbox'] });
-  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: false, hasTouch: true, locale: 'pt-BR' });
+  const ctx = await browser.newContext(Object.assign({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: false, hasTouch: true, locale: 'pt-BR' }, contextOptions));
+  await useFixture(ctx);
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));

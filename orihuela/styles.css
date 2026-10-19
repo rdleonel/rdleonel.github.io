@@ -371,3 +371,12 @@ textarea.mono{min-height:120px}
 .tbl td.heat.pos{background:rgba(61,220,132,var(--heat))}
 .tbl td.heat.neg{background:rgba(255,107,107,var(--heat))}
 .sheet-sub{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-2);margin:4px 0 6px}
+
+/* comissão */
+.hero .fee-line{font-size:13px;color:var(--accent);font-weight:600;margin-top:6px}
+.pchip.fee{color:var(--accent);border-color:#5a4718;background:#2a2210}
+.bonus-block .fee-stat{grid-column:span 2;text-align:left;color:var(--text);font:inherit;cursor:pointer;min-height:44px}
+.bonus-block .fee-stat .value{color:var(--accent)}
+.fee-list{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.fee-row{display:grid;grid-template-columns:1fr 84px 16px;gap:8px;align-items:center;font-size:14px}
+.fee-row input{text-align:right}

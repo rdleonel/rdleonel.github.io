@@ -3,8 +3,8 @@
   'use strict';
   const C = window.OrihuelaCore;
   const V = window.OrihuelaVision;
-  const APP_VERSION = '2.0.0';
-  const LS = { state: 'orihuela.state', pin: 'orihuela.pin', gh: 'orihuela.gh', ui: 'orihuela.ui', qp: 'orihuela.quotes', ai: 'orihuela.ai', live: 'orihuela.live' };
+  const APP_VERSION = '2.1.0';
+  const LS = { state: 'orihuela.state', pin: 'orihuela.pin', gh: 'orihuela.gh', ui: 'orihuela.ui', qp: 'orihuela.quotes', ai: 'orihuela.ai', live: 'orihuela.live', fees: 'orihuela.fees' };
   const DEFAULT_GH = { owner: 'rdleonel', repo: 'rdleonel.github.io', branch: 'main', path: 'orihuela/data.json', token: '' };
   // Serviço de cotações. {TICKERS} e {TOKEN} são trocados na hora da busca.
   const DEFAULT_QP = { url: 'https://brapi.dev/api/quote/{TICKERS}?token={TOKEN}', token: '', sep: ',', auth: '', batch: 20 };
@@ -19,7 +19,10 @@
   if (state.data) state.data = C.normalize(state.data);
   let gh = Object.assign({}, DEFAULT_GH, load(LS.gh) || {});
   let qp = Object.assign({}, DEFAULT_QP, load(LS.qp) || {});
-  let ai = Object.assign({ key: '', model: '' }, load(LS.ai) || {});   // leitura de prints por IA (chave só neste aparelho)
+  let ai = Object.assign({ key: '', model: '' }, load(LS.ai) || {});
+  // Comissão sobre o ganho acima da base do último bônus. Fica só neste aparelho: o
+  // data.json é público e o acordo com cada cliente não deve ir para lá.
+  let fees = Object.assign({ def: 10, byClient: {} }, load(LS.fees) || {});   // leitura de prints por IA (chave só neste aparelho)
   let ui = Object.assign({ chart: { total: true, ret: true }, perfSort: 'ret', mktSort: 'var', walletSort: { k: 'value', dir: -1 } }, load(LS.ui) || {});
   let pendingRemote = null;   // versão do servidor que conflita com edições locais
   let syncStatus = 'idle';    // idle | syncing | offline | error | ok
@@ -269,6 +272,36 @@
   }
   function calc(c) { return C.computeClient(c, quotesNow()); }
   function calcAll() { const q = quotesNow(); return state.data.clients.map(c => C.computeClient(c, q)); }
+  // ---------- comissão ----------
+  function feePct(c) { const v = fees.byClient[c.id]; return Number.isFinite(v) ? v : fees.def; }
+  // { pct, gain, due }: due = pct × ganho acima da base (zero se abaixo); null sem base do bônus
+  function feeOf(c, r) {
+    if (!r.bonusBase || !(r.bonusBase.value > 0)) return null;
+    const pct = feePct(c), gain = r.total - r.bonusBase.value;
+    return { pct, gain, due: Math.max(0, gain) * pct / 100 };
+  }
+  function pctLabel(n) { return String(Math.round(n * 100) / 100).replace('.', ',') + '%'; }
+  function saveFees() { save(LS.fees, fees); }
+  function feeDialog(c) {
+    const own = fees.byClient[c.id];
+    openForm({
+      title: 'Comissão · ' + c.name,
+      fields: [{ key: 'pct', label: 'Comissão sobre o ganho acima da base do bônus (%)', type: 'decimal', value: Number.isFinite(own) ? String(own).replace('.', ',') : '',
+        placeholder: 'padrão ' + pctLabel(fees.def), hint: 'Em branco usa o padrão (' + pctLabel(fees.def) + ', em Ajustes). Fica só neste aparelho.' }],
+      submitLabel: 'Salvar',
+      onSubmit: v => {
+        const raw = String(v.pct || '').trim();
+        if (!raw) delete fees.byClient[c.id];
+        else {
+          const n = C.parseNum(raw.replace('%', ''));
+          if (!Number.isFinite(n) || n < 0 || n > 100) throw new Error('Informe um percentual entre 0 e 100.');
+          fees.byClient[c.id] = n;
+        }
+        saveFees(); render();
+        toast('Comissão de ' + c.name + ': ' + pctLabel(feePct(c)) + '.');
+      }
+    });
+  }
   function spClock() { const d = new Date(Date.now() - 3 * 3600 * 1000); return { dow: d.getUTCDay(), min: d.getUTCHours() * 60 + d.getUTCMinutes() }; }
   function marketHours() { const n = spClock(); return n.dow >= 1 && n.dow <= 5 && n.min >= 9 * 60 + 45 && n.min <= 18 * 60 + 15; }
   function lastSavedQuoteAt() { return Object.keys(state.data.quotes).map(k => state.data.quotes[k].at).sort().pop() || null; }
@@ -330,11 +363,14 @@
     const dayPct = day != null && aum - day > 0 ? day / (aum - day) : null;
     const missing = C.missingQuotes(d);
 
+    const feeTotal = all.reduce((s, r) => { const f = feeOf(d.clients.find(c => c.id === r.id), r); return s + (f ? f.due : 0); }, 0);
+    const feeCount = all.filter(r => r.bonusBase && r.bonusBase.value > 0).length;
     view.appendChild(h('div', { class: 'card' },
       h('div', { class: 'hero' },
         h('div', { class: 'label', text: 'Patrimônio sob gestão' }),
         h('div', { class: 'value num', text: C.fmtBRL(aum) }),
-        h('div', { class: 'delta num ' + signCls(day), text: day == null ? 'Variação do dia aparece depois da próxima busca de preços' : C.fmtSignedBRL(day) + ' ' + dayLabel() + ' (' + C.fmtPct(dayPct) + ')' })),
+        h('div', { class: 'delta num ' + signCls(day), text: day == null ? 'Variação do dia aparece depois da próxima busca de preços' : C.fmtSignedBRL(day) + ' ' + dayLabel() + ' (' + C.fmtPct(dayPct) + ')' }),
+        feeCount ? h('div', { class: 'fee-line num', text: 'Comissões a receber: ' + C.fmtBRL(feeTotal) + (feeCount < all.length ? ' (' + feeCount + ' de ' + all.length + ' clientes com base do bônus)' : '') }) : null),
       h('div', { class: 'status-line' }, liveStatusEl())));
 
     if (missing.length) view.appendChild(h('div', { class: 'banner' },
@@ -348,7 +384,8 @@
       h('div', { class: 'cc-chips num' },
         chipPct(dayLabel(), r.dayPct, dayLabel() + ' —'),
         chipPct('acum.', r.ret, 'acum. —'),
-        r.vsBonus == null ? h('span', { class: 'pchip muted', text: 'sem bônus' }) : chipPct('bônus', r.vsBonus, '')))));
+        r.vsBonus == null ? h('span', { class: 'pchip muted', text: 'sem bônus' }) : chipPct('bônus', r.vsBonus, ''),
+        (f => f && f.due > 0 ? h('span', { class: 'pchip fee', text: 'comissão ' + C.fmtBRL(f.due) }) : null)(feeOf(d.clients.find(c => c.id === r.id), r))))));
     view.appendChild(cards);
 
     view.appendChild(syncCard());
@@ -798,7 +835,11 @@
         stat('Lucro em ações', C.fmtSignedBRL(r.profit), C.fmtPct(r.profitPct), signCls(r.profit))),
       h('div', { class: 'bonus-block' },
         stat('Carteira no último bônus', r.bonusBase ? C.fmtBRL(r.bonusBase.value) : '—', r.bonusBase && r.bonusBase.date ? 'em ' + C.fmtDate(r.bonusBase.date) : 'toque em Editar', '', 'big'),
-        stat('vs. último bônus', r.vsBonus == null ? '—' : C.fmtPct(r.vsBonus), r.bonusBase ? C.fmtSignedBRL(r.total - r.bonusBase.value) : '', signCls(r.vsBonus), 'big'))));
+        stat('vs. último bônus', r.vsBonus == null ? '—' : C.fmtPct(r.vsBonus), r.bonusBase ? C.fmtSignedBRL(r.total - r.bonusBase.value) : '', signCls(r.vsBonus), 'big'),
+        (f => h('button', { class: 'stat fee-stat', type: 'button', onClick: () => feeDialog(c) },
+          h('div', { class: 'label', text: 'Comissão (' + pctLabel(feePct(c)) + ')' }),
+          h('div', { class: 'value', text: f ? C.fmtBRL(f.due) : '—' }),
+          h('div', { class: 'sub', text: !f ? 'cadastre a base do bônus em Editar' : f.gain > 0 ? 'sobre ' + C.fmtBRL(f.gain) + ' acima da base · toque para mudar o %' : 'abaixo da base: nada a receber · toque para mudar o %' })))(feeOf(c, r)))));
 
     setActionBar(actionRow(
       h('button', { class: 'btn primary grow', text: 'Nova operação', onClick: () => txDialog(c) }),
@@ -914,6 +955,7 @@
         item('✎', 'Editar cliente', 'nome, caixa, capital e base do bônus', () => editClientDialog(c)),
         item('◉', 'Registrar ponto agora', 'novo ponto no gráfico com a data de hoje', () => { mutate(data => C.snapshotClient(data, c)); toast('Ponto de hoje registrado.'); }),
         item('▤', 'Ponto manual', 'patrimônio de uma data passada', () => manualPointDialog(c)),
+        item('%', 'Comissão', pctLabel(feePct(c)) + (Number.isFinite(fees.byClient[c.id]) ? ' (deste cliente)' : ' (padrão)'), () => feeDialog(c)),
         item('‹', 'Voltar para os clientes', '', () => go('#/clients'))),
       h('div', { class: 'actions' }, h('button', { class: 'btn', style: 'flex:1', text: 'Fechar', onClick: closeModal }))
     ]);
@@ -1293,6 +1335,39 @@
         } catch (err) { qMsg.textContent = 'Falha: ' + err.message; }
       } })));
     view.appendChild(qCard);
+
+    // Comissões (só neste aparelho)
+    const feeInputs = {};
+    const defInp = h('input', { type: 'text', inputmode: 'decimal', value: String(fees.def).replace('.', ','), id: 'fee-def' });
+    const feeCard = h('div', { class: 'card' }, h('h2', { text: 'Comissões' }),
+      h('p', { class: 'small dim', style: 'margin-bottom:10px', text: 'Comissão = percentual × o que o patrimônio passou da base do último bônus (nada quando está abaixo). Ao cobrar, registre a operação "Bônus" no cliente e a base sobe. Os percentuais ficam só neste aparelho; não vão para o arquivo público.' }),
+      h('div', { class: 'field' }, h('label', { for: 'fee-def', text: 'Padrão para todos (%)' }), defInp));
+    const feeList = h('div', { class: 'fee-list' });
+    state.data.clients.slice().sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).forEach(c => {
+      const own = fees.byClient[c.id];
+      const inp = h('input', { type: 'text', inputmode: 'decimal', value: Number.isFinite(own) ? String(own).replace('.', ',') : '', placeholder: 'padrão', 'aria-label': 'Comissão de ' + c.name });
+      feeInputs[c.id] = inp;
+      feeList.appendChild(h('div', { class: 'fee-row' }, h('span', { text: c.name }), inp, h('span', { class: 'dim', text: '%' })));
+    });
+    feeCard.appendChild(h('label', { class: 'small dim', style: 'display:block;margin-bottom:6px', text: 'Por cliente (em branco = padrão)' }));
+    feeCard.appendChild(feeList);
+    const feeMsg = h('div', { class: 'form-error' });
+    feeCard.appendChild(feeMsg);
+    feeCard.appendChild(h('div', { class: 'btn-row', style: 'margin:0' }, h('button', { class: 'btn primary', text: 'Salvar comissões', onClick: () => {
+      const okNum = x => Number.isFinite(x) && x >= 0 && x <= 100;
+      const d = C.parseNum(String(defInp.value).replace('%', ''));
+      if (!okNum(d)) { feeMsg.textContent = 'Padrão inválido: use um percentual entre 0 e 100.'; return; }
+      const by = {}; const bad = [];
+      Object.keys(feeInputs).forEach(id => {
+        const raw = feeInputs[id].value.trim().replace('%', '');
+        if (!raw) return;
+        const n = C.parseNum(raw);
+        if (okNum(n)) by[id] = n; else bad.push(state.data.clients.find(c => c.id === id).name);
+      });
+      if (bad.length) { feeMsg.textContent = 'Percentual inválido para: ' + bad.join(', ') + '.'; return; }
+      fees = { def: d, byClient: by }; saveFees(); feeMsg.textContent = ''; toast('Comissões salvas.'); render();
+    } })));
+    view.appendChild(feeCard);
 
     // Leitura de prints por IA
     const a = {};
