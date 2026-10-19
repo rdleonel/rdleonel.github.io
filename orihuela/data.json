@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-16T23:45:32.986Z",
+  "updatedAt": "2026-10-19T16:11:57.637Z",
   "quotes": {
     "INBR32": {
       "price": 33,
@@ -235,6 +235,10 @@
       "price": 13.5,
       "at": "2026-10-16T21:30:30.000Z",
       "prev": 13.61
+    },
+    "INBR34": {
+      "price": 34.86,
+      "at": "2026-10-19T16:11:57.154Z"
     }
   },
   "clients": [
@@ -1034,6 +1038,124 @@
           "ret": 0.13037060865582384
         }
       ]
+    },
+    {
+      "id": "c_mvfgclq638jbq",
+      "name": "Luanna",
+      "cash": 1394,
+      "capital": 200000,
+      "bonusBase": null,
+      "positions": [
+        {
+          "ticker": "INBR34",
+          "qty": 1300,
+          "avgPrice": 35.05
+        },
+        {
+          "ticker": "M2RV34",
+          "qty": 410,
+          "avgPrice": 123.5
+        },
+        {
+          "ticker": "ROXO34",
+          "qty": 4000,
+          "avgPrice": 12.35
+        },
+        {
+          "ticker": "MUTC34",
+          "qty": 68,
+          "avgPrice": 779.5
+        }
+      ],
+      "transactions": [
+        {
+          "id": "t_mvfgclv3dxdlf",
+          "date": "2026-10-19",
+          "type": "deposit",
+          "note": "aporte inicial (Total da XP − posição)",
+          "prev": {
+            "cash": 0,
+            "capital": 0
+          },
+          "value": 200000
+        },
+        {
+          "id": "t_mvfgclxgoqr0z",
+          "date": "2026-10-19",
+          "type": "buy",
+          "note": "ordem executada 12:45",
+          "prev": {
+            "qty": 0,
+            "avgPrice": 0,
+            "cash": 200000
+          },
+          "ticker": "INBR34",
+          "qty": 1300,
+          "price": 35.05,
+          "value": 45565
+        },
+        {
+          "id": "t_mvfgclzoxrerc",
+          "date": "2026-10-19",
+          "type": "buy",
+          "note": "ordem executada 12:31",
+          "prev": {
+            "qty": 0,
+            "avgPrice": 0,
+            "cash": 154435
+          },
+          "ticker": "M2RV34",
+          "qty": 410,
+          "price": 123.5,
+          "value": 50635
+        },
+        {
+          "id": "t_mvfgcm1wynjcw",
+          "date": "2026-10-19",
+          "type": "buy",
+          "note": "ordem executada 12:30",
+          "prev": {
+            "qty": 0,
+            "avgPrice": 0,
+            "cash": 103800
+          },
+          "ticker": "ROXO34",
+          "qty": 2000,
+          "price": 12.34,
+          "value": 24680
+        },
+        {
+          "id": "t_mvfgcm43qc3pe",
+          "date": "2026-10-19",
+          "type": "buy",
+          "note": "informada pelo usuário (fora do print)",
+          "prev": {
+            "qty": 2000,
+            "avgPrice": 12.34,
+            "cash": 79120
+          },
+          "ticker": "ROXO34",
+          "qty": 2000,
+          "price": 12.36,
+          "value": 24720
+        },
+        {
+          "id": "t_mvfgcm6diinff",
+          "date": "2026-10-19",
+          "type": "buy",
+          "note": "ordem fora da tela: preço deduzido do resultado do dia da posição",
+          "prev": {
+            "qty": 0,
+            "avgPrice": 0,
+            "cash": 54400
+          },
+          "ticker": "MUTC34",
+          "qty": 68,
+          "price": 779.5,
+          "value": 53006
+        }
+      ],
+      "history": []
     }
   ]
 }
