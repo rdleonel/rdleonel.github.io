@@ -42,7 +42,10 @@ o ponto do pregão de todos os clientes, e faz commit direto na main. Por isso: 
 `git pull` antes de mexer em `data.json`**, e não precisa mais atualizar cotações à mão
 a cada print (só quando o usuário pedir ou o robô falhar). O token da brapi do robô fica
 no secret `BRAPI_TOKEN`. Para testar sem gravar: `BRAPI_TOKEN=... node
-orihuela/tools/robo-cotacoes.js --dry-run`. No app, os preços ao vivo são só exibição e
+orihuela/tools/robo-cotacoes.js --dry-run`. Em feriado a brapi devolve os preços do último
+fechamento com o horário de agora; o robô percebe que nada mudou e não grava (o ponto
+falso de 12/10/2026, feriado, foi apagado). O agendamento do GitHub pode atrasar horas;
+antes das 6h de Brasília o ponto conta como do dia anterior. No app, os preços ao vivo são só exibição e
 nunca entram em `data.json`. Cada cotação pode ter `prev` (fechamento anterior), usado na
 variação do dia; o CLI `quotes` não informa `prev`, e o `setQuotes` só mantém o antigo se
 for do mesmo pregão.
