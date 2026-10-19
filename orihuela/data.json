@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-19T16:11:57.637Z",
+  "updatedAt": "2026-10-19T16:13:47.502Z",
   "quotes": {
     "INBR32": {
       "price": 33,
@@ -1044,7 +1044,10 @@
       "name": "Luanna",
       "cash": 1394,
       "capital": 200000,
-      "bonusBase": null,
+      "bonusBase": {
+        "value": 200000,
+        "date": "2026-10-19"
+      },
       "positions": [
         {
           "ticker": "INBR34",
