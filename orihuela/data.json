@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-20T00:30:31.840Z",
+  "updatedAt": "2026-10-20T14:59:55.147Z",
   "quotes": {
     "INBR32": {
       "price": 33,
@@ -251,11 +251,6 @@
       "bonusBase": null,
       "positions": [
         {
-          "ticker": "INBR32",
-          "qty": 4237,
-          "avgPrice": 20.69358
-        },
-        {
           "ticker": "DASA3",
           "qty": 34600,
           "avgPrice": 2.755925
@@ -274,6 +269,11 @@
           "ticker": "BOVA11",
           "qty": -182,
           "avgPrice": 110.4
+        },
+        {
+          "ticker": "INBR34",
+          "qty": 4237,
+          "avgPrice": 20.69358
         }
       ],
       "transactions": [],
@@ -410,11 +410,6 @@
           "avgPrice": 441.258924
         },
         {
-          "ticker": "INBR32",
-          "qty": 27217,
-          "avgPrice": 34.991495
-        },
-        {
           "ticker": "CVCB3",
           "qty": 1,
           "avgPrice": 6.72
@@ -428,6 +423,11 @@
           "ticker": "HASH11",
           "qty": 600,
           "avgPrice": 53.4
+        },
+        {
+          "ticker": "INBR34",
+          "qty": 27217,
+          "avgPrice": 34.991495
         }
       ],
       "transactions": [],
@@ -529,11 +529,6 @@
           "avgPrice": 61
         },
         {
-          "ticker": "INBR32",
-          "qty": 464,
-          "avgPrice": 34.47
-        },
-        {
           "ticker": "M1TA34",
           "qty": 93,
           "avgPrice": 118.9566
@@ -542,6 +537,11 @@
           "ticker": "BOVA11",
           "qty": -65,
           "avgPrice": 174.74
+        },
+        {
+          "ticker": "INBR34",
+          "qty": 464,
+          "avgPrice": 34.47
         }
       ],
       "transactions": [],
@@ -620,11 +620,6 @@
       "bonusBase": null,
       "positions": [
         {
-          "ticker": "INBR32",
-          "qty": 12313,
-          "avgPrice": 32.984
-        },
-        {
           "ticker": "MUTC34",
           "qty": 234,
           "avgPrice": 783.97
@@ -643,6 +638,11 @@
           "ticker": "IVVB11",
           "qty": -721,
           "avgPrice": 442.26
+        },
+        {
+          "ticker": "INBR34",
+          "qty": 12313,
+          "avgPrice": 32.984
         }
       ],
       "transactions": [],
@@ -729,11 +729,6 @@
           "avgPrice": 764.12
         },
         {
-          "ticker": "INBR32",
-          "qty": 6745,
-          "avgPrice": 24.89965
-        },
-        {
           "ticker": "ROXO34",
           "qty": 16000,
           "avgPrice": 11.25043
@@ -762,6 +757,11 @@
           "ticker": "VULC3",
           "qty": 10000,
           "avgPrice": 14.88992
+        },
+        {
+          "ticker": "INBR34",
+          "qty": 6745,
+          "avgPrice": 24.89965
         }
       ],
       "transactions": [],
@@ -843,11 +843,6 @@
           "ticker": "ROXO34",
           "qty": 188140,
           "avgPrice": 11.67283
-        },
-        {
-          "ticker": "INBR32",
-          "qty": 49605,
-          "avgPrice": 27.48
         },
         {
           "ticker": "GOGL34",
@@ -978,6 +973,11 @@
           "ticker": "IVVB11",
           "qty": -6502,
           "avgPrice": 452.29
+        },
+        {
+          "ticker": "INBR34",
+          "qty": 49605,
+          "avgPrice": 27.48
         }
       ],
       "transactions": [],
