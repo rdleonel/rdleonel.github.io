@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-20T15:00:29.349Z",
+  "updatedAt": "2026-10-20T18:01:52.898Z",
   "quotes": {
     "INBR32": {
       "price": 33,
@@ -247,18 +247,13 @@
       "id": "c_mtxrxe81pmmel",
       "name": "Felipe",
       "cash": 0,
-      "capital": 184689.44,
+      "capital": 229926.69,
       "bonusBase": null,
       "positions": [
         {
           "ticker": "DASA3",
-          "qty": 34600,
-          "avgPrice": 2.755925
-        },
-        {
-          "ticker": "BPAC11",
-          "qty": 1000,
-          "avgPrice": 21.87
+          "qty": 20900,
+          "avgPrice": 2.75592
         },
         {
           "ticker": "ROMI3",
@@ -266,14 +261,19 @@
           "avgPrice": 12.146
         },
         {
-          "ticker": "BOVA11",
-          "qty": -182,
-          "avgPrice": 110.4
+          "ticker": "INBR34",
+          "qty": 2707,
+          "avgPrice": 20.69358
         },
         {
-          "ticker": "INBR34",
-          "qty": 4237,
-          "avgPrice": 20.69358
+          "ticker": "ROXO34",
+          "qty": 5400,
+          "avgPrice": 10.78985
+        },
+        {
+          "ticker": "M1TA34",
+          "qty": 478,
+          "avgPrice": 121.68768
         }
       ],
       "transactions": [],
