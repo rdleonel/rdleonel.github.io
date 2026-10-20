@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-20T20:37:52.900Z",
+  "updatedAt": "2026-10-20T20:50:03.230Z",
   "quotes": {
     "INBR32": {
       "price": 33,
@@ -876,8 +876,8 @@
     {
       "id": "c_mupz8o4vvbnhg",
       "name": "P",
-      "cash": 367154.58,
-      "capital": 3830456.56,
+      "cash": 201812.6,
+      "capital": 3665114.58,
       "bonusBase": {
         "value": 6805000,
         "date": "2026-01-31"
