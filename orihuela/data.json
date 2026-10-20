@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-20T14:59:55.147Z",
+  "updatedAt": "2026-10-20T15:00:29.349Z",
   "quotes": {
     "INBR32": {
       "price": 33,
@@ -716,18 +716,13 @@
     {
       "id": "c_mupz17opytzcs",
       "name": "Nil",
-      "cash": 3307.9,
+      "cash": 1474.9,
       "capital": 472180.39,
       "bonusBase": {
         "value": 700000,
         "date": "2026-01-31"
       },
       "positions": [
-        {
-          "ticker": "MUTC34",
-          "qty": 198,
-          "avgPrice": 764.12
-        },
         {
           "ticker": "ROXO34",
           "qty": 16000,
@@ -750,8 +745,8 @@
         },
         {
           "ticker": "IVVB11",
-          "qty": -720,
-          "avgPrice": 452.29
+          "qty": -781,
+          "avgPrice": 451.0957746478873
         },
         {
           "ticker": "VULC3",
@@ -762,9 +757,63 @@
           "ticker": "INBR34",
           "qty": 6745,
           "avgPrice": 24.89965
+        },
+        {
+          "ticker": "COGN3",
+          "qty": 55000,
+          "avgPrice": 3.2
         }
       ],
-      "transactions": [],
+      "transactions": [
+        {
+          "id": "t_mvgt8jw4nxb7o",
+          "date": "2026-10-20",
+          "type": "buy",
+          "note": "ordem executada 10:32",
+          "prev": {
+            "qty": 0,
+            "avgPrice": 0,
+            "cash": 3307.9
+          },
+          "ticker": "COGN3",
+          "qty": 55000,
+          "price": 3.2,
+          "value": 176000
+        },
+        {
+          "id": "t_mvgt8jxvlbo1b",
+          "date": "2026-10-20",
+          "type": "sell",
+          "note": "ordem executada 10:52",
+          "prev": {
+            "qty": 198,
+            "avgPrice": 764.12,
+            "cash": -172692.1
+          },
+          "ticker": "MUTC34",
+          "qty": 198,
+          "price": 745,
+          "value": 147510,
+          "avgPrice": 764.12,
+          "result": -3785.76,
+          "resultPct": -0.02502224781447937
+        },
+        {
+          "id": "t_mvgt8jz9to3yx",
+          "date": "2026-10-20",
+          "type": "short",
+          "note": "ordem executada 11:13 (aluguel tomador)",
+          "prev": {
+            "qty": -720,
+            "avgPrice": 452.29,
+            "cash": -25182.1
+          },
+          "ticker": "IVVB11",
+          "qty": 61,
+          "price": 437,
+          "value": 26657
+        }
+      ],
       "history": [
         {
           "date": "2026-10-01",
