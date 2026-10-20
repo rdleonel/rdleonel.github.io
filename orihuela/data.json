@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-20T18:01:52.898Z",
+  "updatedAt": "2026-10-20T20:37:52.900Z",
   "quotes": {
     "INBR32": {
       "price": 33,
@@ -876,42 +876,32 @@
     {
       "id": "c_mupz8o4vvbnhg",
       "name": "P",
-      "cash": 8463.97,
-      "capital": 4396345.51,
+      "cash": 367154.58,
+      "capital": 3830456.56,
       "bonusBase": {
         "value": 6805000,
         "date": "2026-01-31"
       },
       "positions": [
         {
-          "ticker": "MUTC34",
-          "qty": 2417,
-          "avgPrice": 791.05
-        },
-        {
           "ticker": "ROXO34",
-          "qty": 188140,
-          "avgPrice": 11.67283
-        },
-        {
-          "ticker": "GOGL34",
-          "qty": 6950,
-          "avgPrice": 147.71064
+          "qty": 21955,
+          "avgPrice": 11.753375
         },
         {
           "ticker": "GMAT3",
           "qty": 136700,
-          "avgPrice": 4.61538
+          "avgPrice": 4.61577
         },
         {
           "ticker": "TSLA34",
-          "qty": 5855,
-          "avgPrice": 57.2454
+          "qty": 5445,
+          "avgPrice": 57.25027
         },
         {
           "ticker": "COGN3",
-          "qty": 100000,
-          "avgPrice": 2.11
+          "qty": 700000,
+          "avgPrice": 2.9494252000000003
         },
         {
           "ticker": "JHSF3",
@@ -926,17 +916,17 @@
         {
           "ticker": "HASH11",
           "qty": 2196,
-          "avgPrice": 60.44549
+          "avgPrice": 60.450635
         },
         {
           "ticker": "EALT4",
           "qty": 9000,
-          "avgPrice": 10.82026
+          "avgPrice": 10.82096
         },
         {
           "ticker": "PETR4",
           "qty": 1464,
-          "avgPrice": 33.93418
+          "avgPrice": 33.93495
         },
         {
           "ticker": "CAMB3",
@@ -946,12 +936,12 @@
         {
           "ticker": "BBAS3",
           "qty": 1698,
-          "avgPrice": 21.45903
+          "avgPrice": 21.460825
         },
         {
           "ticker": "RIAA3",
           "qty": 3100,
-          "avgPrice": 6.75824
+          "avgPrice": 6.75847
         },
         {
           "ticker": "TUPY3",
@@ -971,12 +961,12 @@
         {
           "ticker": "GGBR4",
           "qty": 126,
-          "avgPrice": 11.76171
+          "avgPrice": 11.76233
         },
         {
           "ticker": "BBSE3",
           "qty": 77,
-          "avgPrice": 27.58908
+          "avgPrice": 27.590705
         },
         {
           "ticker": "SAPR11",
@@ -1014,22 +1004,74 @@
           "avgPrice": 136.21
         },
         {
-          "ticker": "BOVA11",
-          "qty": -5478,
-          "avgPrice": 184.41
-        },
-        {
           "ticker": "IVVB11",
-          "qty": -6502,
-          "avgPrice": 452.29
+          "qty": -14102,
+          "avgPrice": 444.885093
         },
         {
           "ticker": "INBR34",
-          "qty": 49605,
-          "avgPrice": 27.48
+          "qty": 159539,
+          "avgPrice": 32.592921
+        },
+        {
+          "ticker": "VULC3",
+          "qty": 40000,
+          "avgPrice": 15
         }
       ],
-      "transactions": [],
+      "transactions": [
+        {
+          "id": "t_mvh5afx6rh7f6",
+          "date": "2026-10-20",
+          "type": "buy",
+          "note": "ordem executada 10:25",
+          "prev": {
+            "qty": 620000,
+            "avgPrice": 2.913222,
+            "cash": 438338.1
+          },
+          "ticker": "COGN3",
+          "qty": 80000,
+          "price": 3.23,
+          "value": 258400
+        },
+        {
+          "id": "t_mvh5afyj5bwwz",
+          "date": "2026-10-20",
+          "type": "sell",
+          "note": "ordem executada 11:01",
+          "prev": {
+            "qty": 217,
+            "avgPrice": 791.05,
+            "cash": 179938.1
+          },
+          "ticker": "MUTC34",
+          "qty": 217,
+          "price": 752.54,
+          "value": 163301.18,
+          "avgPrice": 791.05,
+          "result": -8356.67,
+          "resultPct": -0.04868213134441568
+        },
+        {
+          "id": "t_mvh5ag04s2sru",
+          "date": "2026-10-20",
+          "type": "sell",
+          "note": "ordem executada 11:07",
+          "prev": {
+            "qty": 5855,
+            "avgPrice": 57.25027,
+            "cash": 343239.28
+          },
+          "ticker": "TSLA34",
+          "qty": 410,
+          "price": 58.33,
+          "value": 23915.3,
+          "avgPrice": 57.25,
+          "result": 442.69,
+          "resultPct": 0.01885982371786188
+        }
+      ],
       "history": [
         {
           "date": "2026-10-01",
