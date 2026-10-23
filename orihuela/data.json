@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-23T00:04:26.543Z",
+  "updatedAt": "2026-10-23T19:02:28.978Z",
   "quotes": {
     "INBR32": {
       "price": 33,
@@ -687,34 +687,34 @@
     {
       "id": "c_mubjqigci5a3i",
       "name": "GABRIEL",
-      "cash": 0,
+      "cash": 4541.79,
       "capital": 525005.72,
       "bonusBase": null,
       "positions": [
         {
-          "ticker": "MUTC34",
-          "qty": 234,
-          "avgPrice": 783.97
-        },
-        {
-          "ticker": "TSLA34",
-          "qty": 2311,
-          "avgPrice": 60.11
-        },
-        {
-          "ticker": "MSFT34",
-          "qty": 1200,
-          "avgPrice": 96.15
-        },
-        {
           "ticker": "IVVB11",
-          "qty": -721,
-          "avgPrice": 442.26
+          "qty": -1421,
+          "avgPrice": 440.530936
         },
         {
           "ticker": "INBR34",
-          "qty": 12313,
-          "avgPrice": 32.984
+          "qty": 16012,
+          "avgPrice": 34.09244
+        },
+        {
+          "ticker": "COGN3",
+          "qty": 18000,
+          "avgPrice": 3.09
+        },
+        {
+          "ticker": "ROXO34",
+          "qty": 18600,
+          "avgPrice": 12.86957
+        },
+        {
+          "ticker": "VULC3",
+          "qty": 21000,
+          "avgPrice": 15.840283
         }
       ],
       "transactions": [],
